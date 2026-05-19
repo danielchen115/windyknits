@@ -4,12 +4,37 @@ struct PatternViewerScreen: View {
     let projectId: String
 
     @Environment(\.dismiss) private var dismiss
-    @State private var current: Int = 5
+    // Shared with CounterScreen via the same AppStorage key — advancing in
+    // either screen propagates to the other.
+    @AppStorage private var current: Int
     @State private var voice: Bool = false
     @State private var tappedAbbr: TappedAbbr?
 
+    init(projectId: String) {
+        self.projectId = projectId
+        _current = AppStorage(wrappedValue: 5, "counter.\(projectId).rows")
+    }
+
     private var rows: [PatternRow] { SampleData.pattern }
-    private var currentRow: PatternRow? { rows.first { $0.n == current } }
+
+    // The chart is `rowsPerRepeat` rows that tile vertically. UI shows the
+    // chart cycle and tracks the user's position *within* the current repeat,
+    // so absolute row 17 displays as "chart row 5 of 12, repeat 2 of 4".
+    private var rowInRepeat: Int {
+        let c = max(current, 1)
+        return ((c - 1) % SampleData.rowsPerRepeat) + 1
+    }
+    private var repeatNumber: Int {
+        let c = max(current, 1)
+        return ((c - 1) / SampleData.rowsPerRepeat) + 1
+    }
+    private var totalRepeats: Int {
+        max(1, SampleData.patternTotalRows / SampleData.rowsPerRepeat)
+    }
+    private var sectionComplete: Bool {
+        current >= SampleData.patternTotalRows
+    }
+    private var currentRow: PatternRow? { rows.first { $0.n == rowInRepeat } }
 
     struct TappedAbbr: Identifiable {
         let id = UUID()
@@ -86,12 +111,16 @@ struct PatternViewerScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Current row").eyebrow(color: Palette.primaryDark)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(current)")
+                    Text("\(rowInRepeat)")
                         .font(AppFont.serif(30))
                         .foregroundStyle(Palette.walnut)
                         .monospacedDigit()
-                    Text("of \(SampleData.patternTotalRows)").meta()
+                    Text("of \(SampleData.rowsPerRepeat)").meta()
                 }
+                Text("Repeat \(repeatNumber) of \(totalRepeats) · Row \(current) of \(SampleData.patternTotalRows)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Palette.walnutMute)
+                    .padding(.top, 2)
             }
             Spacer()
             if let r = currentRow {
@@ -145,16 +174,21 @@ struct PatternViewerScreen: View {
                         rowView(r)
                             .id(r.n)
                             .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.18)) { current = r.n }
+                                // Tapping a chart row sets us to that row inside the
+                                // current repeat (not absolute row r.n).
+                                let base = (max(repeatNumber, 1) - 1) * SampleData.rowsPerRepeat
+                                withAnimation(.easeInOut(duration: 0.18)) {
+                                    current = base + r.n
+                                }
                             }
                     }
                     Color.clear.frame(height: 60)
                 }
                 .padding(.horizontal, 12)
             }
-            .onChange(of: current) { _, newValue in
+            .onChange(of: current) { _, _ in
                 withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(newValue, anchor: .center)
+                    proxy.scrollTo(rowInRepeat, anchor: .center)
                 }
             }
         }
@@ -162,8 +196,8 @@ struct PatternViewerScreen: View {
 
     @ViewBuilder
     private func rowView(_ r: PatternRow) -> some View {
-        let state: RowState = (r.n < current ? .done :
-                               r.n == current ? .current : .future)
+        let state: RowState = (r.n < rowInRepeat ? .done :
+                               r.n == rowInRepeat ? .current : .future)
         let textColor: Color = {
             switch state {
             case .current: return Palette.walnut
@@ -272,13 +306,15 @@ struct PatternViewerScreen: View {
             Button {
                 current = min(SampleData.patternTotalRows, current + 1)
             } label: {
-                Text("Mark row \(current) done")
+                Text(sectionComplete ? "Section complete" : "Mark row \(rowInRepeat) done")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Palette.primary))
+                    .background(RoundedRectangle(cornerRadius: 14)
+                        .fill(sectionComplete ? Palette.walnutMute : Palette.primary))
             }
             .buttonStyle(PressScaleStyle())
+            .disabled(sectionComplete)
 
             NavigationLink(value: Route.counter(projectId)) {
                 Image(systemName: "number.square")
@@ -321,5 +357,10 @@ private struct AbbrSheet: View {
 }
 
 #Preview {
-    NavigationStack { PatternViewerScreen(projectId: "p1") }.tint(Palette.primary)
+    @Previewable @State var path = NavigationPath()
+    NavigationStack(path: $path) {
+        PatternViewerScreen(projectId: "p1")
+            .navigationDestinationForRoutes()
+    }
+    .tint(Palette.primary)
 }

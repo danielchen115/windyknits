@@ -7,21 +7,34 @@ struct CounterScreen: View {
     @Environment(\.dismiss) private var dismiss
 
     // Persisted per project, so each project keeps its own counters across launches.
+    // `repeats` and `rowInRepeat` are derived from `rows` — no separate storage.
     @AppStorage private var rows: Int
     @AppStorage private var stitches: Int
-    @AppStorage private var repeats: Int
     @AppStorage private var linked: Bool
     @AppStorage private var activeRaw: String
+    // Completed-row log as JSON. Each forward step in `rows` appends a stamped
+    // entry; capped at 50 to keep UserDefaults light.
+    @AppStorage private var historyJSON: String
+    // Holds the just-completed row number for ~1.3s after a single-row advance
+    // so the celebration chip + card pulse can animate. nil = no celebration.
+    @State private var celebrationRow: Int? = nil
 
     init(projectId: String = "p1", showsBackButton: Bool = true) {
         self.projectId = projectId
         self.showsBackButton = showsBackButton
-        _rows      = AppStorage(wrappedValue: 47,   "counter.\(projectId).rows")
-        _stitches  = AppStorage(wrappedValue: 34,   "counter.\(projectId).stitches")
-        _repeats   = AppStorage(wrappedValue: 3,    "counter.\(projectId).repeats")
-        _linked    = AppStorage(wrappedValue: true, "counter.\(projectId).linked")
-        _activeRaw = AppStorage(wrappedValue: ActiveCounter.stitches.rawValue,
-                                "counter.\(projectId).active")
+        _rows        = AppStorage(wrappedValue: 5,    "counter.\(projectId).rows")
+        _stitches    = AppStorage(wrappedValue: 34,   "counter.\(projectId).stitches")
+        _linked      = AppStorage(wrappedValue: true, "counter.\(projectId).linked")
+        _activeRaw   = AppStorage(wrappedValue: ActiveCounter.stitches.rawValue,
+                                  "counter.\(projectId).active")
+        _historyJSON = AppStorage(wrappedValue: "[]", "counter.\(projectId).history")
+    }
+
+    private var repeats: Int {
+        rows < 1 ? 0 : ((rows - 1) / SampleData.rowsPerRepeat) + 1
+    }
+    private var rowInRepeat: Int {
+        rows < 1 ? 0 : ((rows - 1) % SampleData.rowsPerRepeat) + 1
     }
 
     enum ActiveCounter: String { case rows, stitches, repeats }
@@ -31,13 +44,67 @@ struct CounterScreen: View {
         nonmutating set { activeRaw = newValue.rawValue }
     }
 
-    private let stitchGoal = 96
-    private let repeatGoal = 8
+    // Pulls the stitch target from the pattern data for the current row, so
+    // linked auto-advance fires at the right count for variable-stitch rows
+    // (e.g. increase/decrease rows). Falls back to 96 when we're outside the
+    // sample-pattern range.
+    private var stitchGoal: Int {
+        SampleData.pattern.first(where: { $0.n == rows })?.sts ?? 24
+    }
+    private var repeatGoal: Int {
+        SampleData.patternTotalRows / SampleData.rowsPerRepeat
+    }
     private var rowsGoal: Int { SampleData.patternTotalRows }
 
     private var project: Project { SampleData.project(id: projectId) }
 
+    private var completedRows: [CompletedRow] {
+        CounterHistory.decode(historyJSON)
+    }
+
+    private func writeCompletedRows(_ list: [CompletedRow]) {
+        guard let data = try? JSONEncoder().encode(list),
+              let str = String(data: data, encoding: .utf8) else { return }
+        historyJSON = str
+    }
+
+    // Forward step: append a stamped entry for each row crossed. Multi-row
+    // jumps (the repeat tap) record one entry per row, all timestamped now.
+    private func recordCompletions(from oldRows: Int, to newRows: Int) {
+        guard newRows > oldRows else { return }
+        let now = Date()
+        var list = completedRows
+        for n in oldRows..<newRows where n >= 1 {
+            let s = SampleData.pattern.first(where: { $0.n == n })?.sts ?? 24
+            list.append(.init(n: n, timestamp: now, sts: s))
+        }
+        if list.count > 50 { list = Array(list.suffix(50)) }
+        writeCompletedRows(list)
+    }
+
     var body: some View {
+        content
+            .overlay(alignment: .top) {
+                if let n = celebrationRow {
+                    celebrationChip(row: n)
+                }
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: rows) { oldValue, newValue in
+                recordCompletions(from: oldValue, to: newValue)
+                // Single-row completions get the chip; multi-row jumps (repeat
+                // tap) rely on the success haptic alone, since "Row 5 done"
+                // would be misleading after an 8-row jump.
+                if newValue - oldValue == 1, oldValue >= 1 {
+                    celebrate(rowJustCompleted: oldValue)
+                }
+            }
+            .sensoryFeedback(.increase, trigger: stitches) { old, new in new > old }
+            .sensoryFeedback(.impact(weight: .heavy), trigger: rows) { old, new in new > old }
+            .sensoryFeedback(.success, trigger: repeats) { old, new in new > old }
+    }
+
+    private var content: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
 
@@ -53,7 +120,34 @@ struct CounterScreen: View {
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func celebrate(rowJustCompleted n: Int) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+            celebrationRow = n
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.3))
+            withAnimation(.easeOut(duration: 0.35)) {
+                celebrationRow = nil
+            }
+        }
+    }
+
+    private func celebrationChip(row: Int) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 14, weight: .semibold))
+            Text("Row \(row) done")
+                .font(.system(size: 13, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Palette.accent))
+        .shadow(color: Palette.accent.opacity(0.45), radius: 12, y: 6)
+        .padding(.top, 70)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: nav
@@ -97,7 +191,7 @@ struct CounterScreen: View {
         switch active {
         case .stitches: return linked ? "of \(stitchGoal) → auto-bumps row" : "of \(stitchGoal)"
         case .rows:     return "of \(rowsGoal) — yoke"
-        case .repeats:  return "of \(repeatGoal) chart repeats"
+        case .repeats:  return "of \(repeatGoal) chart repeats — row \(rowInRepeat) of \(SampleData.rowsPerRepeat)"
         }
     }
     private var primaryProgress: Double {
@@ -158,6 +252,12 @@ struct CounterScreen: View {
                 )
                 .shadow(color: Palette.primary.opacity(0.5), radius: 20, x: 0, y: 14)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(Color.white.opacity(celebrationRow != nil ? 0.55 : 0), lineWidth: 3)
+        )
+        .scaleEffect(celebrationRow != nil ? 1.025 : 1.0)
+        .animation(.spring(response: 0.35, dampingFraction: 0.55), value: celebrationRow)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture { tapPrimary() }
         .padding(.horizontal, 16)
@@ -186,7 +286,7 @@ struct CounterScreen: View {
                 stitches = next
             }
         case .rows:    rows += 1
-        case .repeats: repeats += 1
+        case .repeats: advanceRepeat()
         }
     }
 
@@ -194,16 +294,32 @@ struct CounterScreen: View {
         switch active {
         case .stitches: stitches = max(0, stitches + delta)
         case .rows:     rows     = max(0, rows + delta)
-        case .repeats:  repeats  = max(0, repeats + delta)
+        case .repeats:
+            if delta > 0 { advanceRepeat() }
+            else if delta < 0 { rewindRepeat() }
         }
     }
 
     private func resetActive() {
         switch active {
         case .stitches: stitches = 0
-        case .rows:     rows = 0
-        case .repeats:  repeats = 0
+        case .rows:     rows = 0; writeCompletedRows([])
+        case .repeats:  rows = 0; writeCompletedRows([])
         }
+    }
+
+    // Snap to the first row of the next repeat ("just finished this repeat").
+    // Clamped to the section end, so a tap on the last repeat is a no-op.
+    private func advanceRepeat() {
+        let nextStart = repeats * SampleData.rowsPerRepeat + 1
+        rows = min(SampleData.patternTotalRows, nextStart)
+    }
+
+    // If we're mid-repeat, snap to the start of the current repeat; if already
+    // at a repeat start, go back to the previous repeat's start.
+    private func rewindRepeat() {
+        let currentStart = max(1, (repeats - 1) * SampleData.rowsPerRepeat + 1)
+        rows = rows > currentStart ? currentStart : max(0, currentStart - SampleData.rowsPerRepeat)
     }
 
     // MARK: secondary row
@@ -308,23 +424,37 @@ struct CounterScreen: View {
     }
 
     private struct HistoryEntry: Identifiable {
-        let id: Int
+        let id: String
         let n: Int
-        let time: String
+        let timestamp: Date?
         let sts: Int
         let ongoing: Bool
     }
 
     private var historyEntries: [HistoryEntry] {
-        [
-            .init(id: 0, n: 47, time: "just now",    sts: stitches, ongoing: true),
-            .init(id: 1, n: 46, time: "4 min ago",   sts: 96, ongoing: false),
-            .init(id: 2, n: 45, time: "9 min ago",   sts: 96, ongoing: false),
-            .init(id: 3, n: 44, time: "13 min ago",  sts: 94, ongoing: false),
-            .init(id: 4, n: 43, time: "17 min ago",  sts: 94, ongoing: false),
-            .init(id: 5, n: 42, time: "21 min ago",  sts: 92, ongoing: false)
-        ]
+        var entries: [HistoryEntry] = []
+        if rows >= 1 {
+            entries.append(.init(id: "ongoing", n: rows, timestamp: nil,
+                                 sts: stitches, ongoing: true))
+        }
+        // Show the 5 most recent completions newest-first.
+        for c in completedRows.suffix(5).reversed() {
+            entries.append(.init(
+                id: "\(c.n)-\(c.timestamp.timeIntervalSince1970)",
+                n: c.n,
+                timestamp: c.timestamp,
+                sts: c.sts,
+                ongoing: false
+            ))
+        }
+        return entries
     }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
 
     private var historyCard: some View {
         SoftCard(padding: 4) {
@@ -342,8 +472,8 @@ struct CounterScreen: View {
                                     .font(.system(size: 13))
                                     .foregroundStyle(Palette.primaryDark)
                             }
-                        } else {
-                            Text(r.time)
+                        } else if let ts = r.timestamp {
+                            Text(Self.relativeFormatter.localizedString(for: ts, relativeTo: Date()))
                                 .font(.system(size: 13))
                                 .foregroundStyle(Palette.walnutSoft)
                         }

@@ -3,6 +3,11 @@ import SwiftUI
 struct TodayScreen: View {
     @Binding var path: NavigationPath
     var switchTab: (AppTab) -> Void = { _ in }
+    // Subscribed to the same keys CounterScreen writes to — stats tiles and
+    // the "currently knitting" progress re-render automatically as rows are
+    // advanced or completions are logged.
+    @AppStorage("counter.p1.rows") private var currentRow: Int = 5
+    @AppStorage("counter.p1.history") private var historyJSON: String = "[]"
 
     init(path: Binding<NavigationPath> = .constant(NavigationPath()),
          switchTab: @escaping (AppTab) -> Void = { _ in }) {
@@ -17,6 +22,36 @@ struct TodayScreen: View {
     }
 
     private var active: Project { SampleData.projects[0] }
+
+    private var history: [CompletedRow] { CounterHistory.decode(historyJSON) }
+
+    private var rowsThisWeekValue: String {
+        "\(CounterHistory.rowsThisWeek(history))"
+    }
+    private var timeTodayDisplay: (value: String, unit: String) {
+        Self.formatDuration(CounterHistory.timeToday(history))
+    }
+    private var totalTimeDisplay: (value: String, unit: String) {
+        Self.formatDuration(CounterHistory.totalTime(history))
+    }
+
+    private static func formatDuration(_ seconds: TimeInterval) -> (value: String, unit: String) {
+        seconds < 3600
+            ? ("\(Int(seconds / 60))", "min")
+            : ("\(Int(seconds / 3600))", "hr")
+    }
+
+    // Yoke-scoped progress — the counter only tracks the current pattern
+    // section, so the "currently knitting" card shows progress within that
+    // section, not the whole project.
+    private var sectionProgress: Double {
+        let total = SampleData.patternTotalRows
+        guard total > 0 else { return 0 }
+        return min(1, max(0, Double(currentRow) / Double(total)))
+    }
+    private var sectionPercentLabel: String {
+        "\(Int((sectionProgress * 100).rounded()))%"
+    }
 
     var body: some View {
         ZStack {
@@ -79,17 +114,17 @@ struct TodayScreen: View {
                         }
 
                         HStack(alignment: .firstTextBaseline) {
-                            Text("Row \(Text("\(active.rowsDone)").foregroundStyle(Palette.primaryDark).fontWeight(.semibold)) / \(active.rowsTotal)")
+                            Text("Row \(Text("\(currentRow)").foregroundStyle(Palette.primaryDark).fontWeight(.semibold)) / \(SampleData.patternTotalRows)")
                                 .foregroundStyle(Palette.walnutSoft)
                                 .font(AppFont.mono(13))
                             Spacer()
-                            Text(active.percentLabel)
+                            Text(sectionPercentLabel)
                                 .font(AppFont.mono(12))
                                 .foregroundStyle(Palette.walnutMute)
                         }
                         .padding(.top, 18)
 
-                        ProgressBar(value: active.progress)
+                        ProgressBar(value: sectionProgress)
                             .padding(.top, 8)
                     }
                     .contentShape(Rectangle())
@@ -132,9 +167,13 @@ struct TodayScreen: View {
 
     private var statsRow: some View {
         HStack(spacing: 10) {
-            StatTile(label: "This week", value: "142", unit: "rows")
-            StatTile(label: "Time today", value: "38", unit: "min")
-            StatTile(label: "Days knit", value: "84", unit: "days")
+            StatTile(label: "This week", value: rowsThisWeekValue, unit: "rows")
+            StatTile(label: "Time today",
+                     value: timeTodayDisplay.value,
+                     unit: timeTodayDisplay.unit)
+            StatTile(label: "Total time",
+                     value: totalTimeDisplay.value,
+                     unit: totalTimeDisplay.unit)
         }
         .padding(.horizontal, 16)
         .padding(.top, 20)
@@ -236,5 +275,10 @@ struct ProjectRow: View {
 }
 
 #Preview {
-    NavigationStack { TodayScreen() }.tint(Palette.primary)
+    @Previewable @State var path = NavigationPath()
+    NavigationStack(path: $path) {
+        TodayScreen(path: $path)
+            .navigationDestinationForRoutes()
+    }
+    .tint(Palette.primary)
 }
