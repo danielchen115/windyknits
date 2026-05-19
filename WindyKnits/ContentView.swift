@@ -1,24 +1,7 @@
-//
-//  ContentView.swift
-//  WindyKnits
-//
-//  Created by Daniel Chen on 5/19/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
+    var body: some View { RootView() }
 }
 
-#Preview {
-    ContentView()
-}
+#Preview { ContentView() }
