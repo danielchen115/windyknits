@@ -4,6 +4,7 @@ struct ProjectDetailScreen: View {
     let projectId: String
     @State private var tab: DetailTab = .overview
     @Environment(\.dismiss) private var dismiss
+    @Environment(PatternStore.self) private var store
 
     enum DetailTab: Hashable, CaseIterable {
         case overview, materials, notes
@@ -16,7 +17,9 @@ struct ProjectDetailScreen: View {
         }
     }
 
-    private var project: Project { SampleData.project(id: projectId) }
+    private var project: Project {
+        store.project(id: projectId) ?? SampleData.project(id: projectId)
+    }
 
     var body: some View {
         ZStack {
@@ -249,5 +252,7 @@ private struct KV: View {
 }
 
 #Preview {
-    NavigationStack { ProjectDetailScreen(projectId: "p1") }.tint(Palette.primary)
+    NavigationStack { ProjectDetailScreen(projectId: "p1") }
+        .environment(PatternStore.shared)
+        .tint(Palette.primary)
 }

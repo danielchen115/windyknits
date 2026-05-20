@@ -5,6 +5,7 @@ struct CounterScreen: View {
     var showsBackButton: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(PatternStore.self) private var store
 
     // Persisted per project, so each project keeps its own counters across launches.
     // `repeats` and `rowInRepeat` are derived from `rows` — no separate storage.
@@ -18,12 +19,23 @@ struct CounterScreen: View {
     // Holds the just-completed row number for ~1.3s after a single-row advance
     // so the celebration chip + card pulse can animate. nil = no celebration.
     @State private var celebrationRow: Int? = nil
+    // Same idea, but for finishing a chart repeat — bigger flourish, ~2s
+    // lifetime, suppresses the row chip when both fire on the same advance.
+    @State private var celebrationRepeat: Int? = nil
+    // Increment to trigger a new confetti burst on the primary card.
+    @State private var confettiTrigger: Int = 0
 
     init(projectId: String = "p1", showsBackButton: Bool = true) {
         self.projectId = projectId
         self.showsBackButton = showsBackButton
-        _rows        = AppStorage(wrappedValue: 5,    "counter.\(projectId).rows")
-        _stitches    = AppStorage(wrappedValue: 34,   "counter.\(projectId).stitches")
+        // Curated demo state for the bundled sample projects, so the canvas
+        // screens read as in-progress; everything else (manual + imported)
+        // starts at zero so users see their own progress, not someone else's.
+        let isSample = SampleData.projects.contains(where: { $0.id == projectId })
+        let defaultRows     = isSample ? 5  : 0
+        let defaultStitches = isSample ? 34 : 0
+        _rows        = AppStorage(wrappedValue: defaultRows,     "counter.\(projectId).rows")
+        _stitches    = AppStorage(wrappedValue: defaultStitches, "counter.\(projectId).stitches")
         _linked      = AppStorage(wrappedValue: true, "counter.\(projectId).linked")
         _activeRaw   = AppStorage(wrappedValue: ActiveCounter.stitches.rawValue,
                                   "counter.\(projectId).active")
@@ -31,10 +43,10 @@ struct CounterScreen: View {
     }
 
     private var repeats: Int {
-        rows < 1 ? 0 : ((rows - 1) / SampleData.rowsPerRepeat) + 1
+        rows < 1 ? 0 : ((rows - 1) / rowsPerRepeat) + 1
     }
     private var rowInRepeat: Int {
-        rows < 1 ? 0 : ((rows - 1) % SampleData.rowsPerRepeat) + 1
+        rows < 1 ? 0 : ((rows - 1) % rowsPerRepeat) + 1
     }
 
     enum ActiveCounter: String { case rows, stitches, repeats }
@@ -44,19 +56,34 @@ struct CounterScreen: View {
         nonmutating set { activeRaw = newValue.rawValue }
     }
 
+    // True for the bundled demo projects (p1/p2/p3) — they ride on the static
+    // SampleData chart. Imported and manual projects bring their own pattern.
+    private var usesSampleChart: Bool { project.pattern == nil }
+
     // Pulls the stitch target from the pattern data for the current row, so
     // linked auto-advance fires at the right count for variable-stitch rows
-    // (e.g. increase/decrease rows). Falls back to 96 when we're outside the
-    // sample-pattern range.
+    // (e.g. increase/decrease rows). Falls back to 24 outside the pattern range.
     private var stitchGoal: Int {
-        SampleData.pattern.first(where: { $0.n == rows })?.sts ?? 24
+        if let p = project.pattern {
+            return p.rows.first(where: { $0.n == rows })?.sts ?? 24
+        }
+        return SampleData.pattern.first(where: { $0.n == rows })?.sts ?? 24
+    }
+    private var rowsGoal: Int {
+        usesSampleChart ? SampleData.patternTotalRows : max(1, project.rowsTotal)
+    }
+    // Imported/manual patterns don't expose a chart-repeat cadence yet — treat
+    // the whole pattern as one repeat so the repeat counter degrades gracefully.
+    private var rowsPerRepeat: Int {
+        usesSampleChart ? SampleData.rowsPerRepeat : rowsGoal
     }
     private var repeatGoal: Int {
-        SampleData.patternTotalRows / SampleData.rowsPerRepeat
+        rowsPerRepeat > 0 ? max(1, rowsGoal / rowsPerRepeat) : 1
     }
-    private var rowsGoal: Int { SampleData.patternTotalRows }
 
-    private var project: Project { SampleData.project(id: projectId) }
+    private var project: Project {
+        store.project(id: projectId) ?? SampleData.project(id: projectId)
+    }
 
     private var completedRows: [CompletedRow] {
         CounterHistory.decode(historyJSON)
@@ -75,7 +102,12 @@ struct CounterScreen: View {
         let now = Date()
         var list = completedRows
         for n in oldRows..<newRows where n >= 1 {
-            let s = SampleData.pattern.first(where: { $0.n == n })?.sts ?? 24
+            let s: Int = {
+                if let p = project.pattern {
+                    return p.rows.first(where: { $0.n == n })?.sts ?? 24
+                }
+                return SampleData.pattern.first(where: { $0.n == n })?.sts ?? 24
+            }()
             list.append(.init(n: n, timestamp: now, sts: s))
         }
         if list.count > 50 { list = Array(list.suffix(50)) }
@@ -85,24 +117,43 @@ struct CounterScreen: View {
     var body: some View {
         content
             .overlay(alignment: .top) {
-                if let n = celebrationRow {
-                    celebrationChip(row: n)
-                }
+                celebrationOverlay
             }
             .toolbar(.hidden, for: .navigationBar)
-            .onChange(of: rows) { oldValue, newValue in
-                recordCompletions(from: oldValue, to: newValue)
-                // Single-row completions get the chip; multi-row jumps (repeat
-                // tap) rely on the success haptic alone, since "Row 5 done"
-                // would be misleading after an 8-row jump.
-                if newValue - oldValue == 1, oldValue >= 1 {
-                    celebrate(rowJustCompleted: oldValue)
-                }
-            }
-            .sensoryFeedback(.increase, trigger: stitches) { old, new in new > old }
-            .sensoryFeedback(.impact(weight: .heavy), trigger: rows) { old, new in new > old }
-            .sensoryFeedback(.success, trigger: repeats) { old, new in new > old }
+            .onChange(of: rows, handleRowsChange)
+            .sensoryFeedback(.increase, trigger: stitches, condition: didIncrease)
+            .sensoryFeedback(.impact(weight: .heavy), trigger: rows, condition: didIncrease)
+            .sensoryFeedback(.success, trigger: repeats, condition: didIncrease)
     }
+
+    @ViewBuilder
+    private var celebrationOverlay: some View {
+        if let r = celebrationRepeat {
+            celebrationBanner(repeatNumber: r)
+        } else if let n = celebrationRow {
+            celebrationChip(row: n)
+        }
+    }
+
+    private func handleRowsChange(_ oldValue: Int, _ newValue: Int) {
+        recordCompletions(from: oldValue, to: newValue)
+        guard newValue > oldValue, oldValue >= 1 else { return }
+        let rpr = rowsPerRepeat
+        let oldRepeat = ((oldValue - 1) / rpr) + 1
+        let newRepeat = ((newValue - 1) / rpr) + 1
+        if newRepeat > oldRepeat {
+            // A repeat boundary was crossed — celebrate the just-finished one.
+            // This supersedes any row chip that the same advance would have
+            // triggered.
+            celebrate(repeatJustCompleted: newRepeat - 1)
+        } else if newValue - oldValue == 1 {
+            // Single-row completion within a repeat. Multi-row jumps that don't
+            // cross a boundary fall through silently (haptic only).
+            celebrate(rowJustCompleted: oldValue)
+        }
+    }
+
+    private func didIncrease(_ old: Int, _ new: Int) -> Bool { new > old }
 
     private var content: some View {
         ZStack {
@@ -134,6 +185,19 @@ struct CounterScreen: View {
         }
     }
 
+    private func celebrate(repeatJustCompleted n: Int) {
+        confettiTrigger += 1
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.55)) {
+            celebrationRepeat = n
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.0))
+            withAnimation(.easeOut(duration: 0.45)) {
+                celebrationRepeat = nil
+            }
+        }
+    }
+
     private func celebrationChip(row: Int) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "checkmark.circle.fill")
@@ -148,6 +212,32 @@ struct CounterScreen: View {
         .shadow(color: Palette.accent.opacity(0.45), radius: 12, y: 6)
         .padding(.top, 70)
         .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private func celebrationBanner(repeatNumber: Int) -> some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Repeat \(repeatNumber) done")
+                    .font(.system(size: 16, weight: .bold))
+            }
+            Text("\(rowsPerRepeat) rows complete")
+                .font(.system(size: 11, weight: .medium))
+                .opacity(0.85)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [Palette.accent, Palette.primary],
+                    startPoint: .topLeading, endPoint: .bottomTrailing))
+        )
+        .shadow(color: Palette.accent.opacity(0.5), radius: 18, y: 10)
+        .padding(.top, 60)
+        .transition(.scale(scale: 0.6).combined(with: .opacity))
     }
 
     // MARK: nav
@@ -190,8 +280,8 @@ struct CounterScreen: View {
     private var primaryHint: String {
         switch active {
         case .stitches: return linked ? "of \(stitchGoal) → auto-bumps row" : "of \(stitchGoal)"
-        case .rows:     return "of \(rowsGoal) — yoke"
-        case .repeats:  return "of \(repeatGoal) chart repeats — row \(rowInRepeat) of \(SampleData.rowsPerRepeat)"
+        case .rows:     return usesSampleChart ? "of \(rowsGoal) — yoke" : "of \(rowsGoal) rows"
+        case .repeats:  return "of \(repeatGoal) chart repeats — row \(rowInRepeat) of \(rowsPerRepeat)"
         }
     }
     private var primaryProgress: Double {
@@ -254,14 +344,25 @@ struct CounterScreen: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(celebrationRow != nil ? 0.55 : 0), lineWidth: 3)
+                .stroke(Color.white.opacity(isCelebrating ? 0.55 : 0), lineWidth: 3)
         )
-        .scaleEffect(celebrationRow != nil ? 1.025 : 1.0)
-        .animation(.spring(response: 0.35, dampingFraction: 0.55), value: celebrationRow)
+        .overlay {
+            ConfettiBurst(triggerID: confettiTrigger)
+                .allowsHitTesting(false)
+        }
+        .scaleEffect(celebrationRepeat != nil ? 1.05
+                     : celebrationRow != nil ? 1.025
+                     : 1.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: celebrationRow)
+        .animation(.spring(response: 0.4, dampingFraction: 0.55), value: celebrationRepeat)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture { tapPrimary() }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
+    }
+
+    private var isCelebrating: Bool {
+        celebrationRow != nil || celebrationRepeat != nil
     }
 
     private func circlePill(system: String, action: @escaping () -> Void) -> some View {
@@ -311,15 +412,15 @@ struct CounterScreen: View {
     // Snap to the first row of the next repeat ("just finished this repeat").
     // Clamped to the section end, so a tap on the last repeat is a no-op.
     private func advanceRepeat() {
-        let nextStart = repeats * SampleData.rowsPerRepeat + 1
-        rows = min(SampleData.patternTotalRows, nextStart)
+        let nextStart = repeats * rowsPerRepeat + 1
+        rows = min(rowsGoal, nextStart)
     }
 
     // If we're mid-repeat, snap to the start of the current repeat; if already
     // at a repeat start, go back to the previous repeat's start.
     private func rewindRepeat() {
-        let currentStart = max(1, (repeats - 1) * SampleData.rowsPerRepeat + 1)
-        rows = rows > currentStart ? currentStart : max(0, currentStart - SampleData.rowsPerRepeat)
+        let currentStart = max(1, (repeats - 1) * rowsPerRepeat + 1)
+        rows = rows > currentStart ? currentStart : max(0, currentStart - rowsPerRepeat)
     }
 
     // MARK: secondary row
@@ -494,6 +595,57 @@ struct CounterScreen: View {
     }
 }
 
+private struct ConfettiBurst: View {
+    let triggerID: Int
+    @State private var progress: Double = 1   // 0 = at center, 1 = scattered + faded
+    @State private var particles: [Particle] = []
+
+    private struct Particle: Identifiable {
+        let id = UUID()
+        let angle: Double
+        let distance: CGFloat
+        let size: CGFloat
+        let color: Color
+        let rotation: Double
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(particles) { p in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(p.color)
+                    .frame(width: p.size, height: p.size * 1.4)
+                    .rotationEffect(.degrees(p.rotation * progress))
+                    .offset(
+                        x: cos(p.angle * .pi / 180) * p.distance * progress,
+                        y: sin(p.angle * .pi / 180) * p.distance * progress
+                    )
+                    .opacity(1 - progress)
+            }
+        }
+        .onChange(of: triggerID) { _, _ in burst() }
+    }
+
+    private func burst() {
+        particles = (0..<20).map { i in
+            Particle(
+                angle: Double(i) * (360.0 / 20.0) + Double.random(in: -10...10),
+                distance: CGFloat.random(in: 90...170),
+                size: CGFloat.random(in: 5...9),
+                color: [Palette.accent, Palette.primary, Palette.primaryDark, .white]
+                    .randomElement()!,
+                rotation: Double.random(in: -270...270)
+            )
+        }
+        progress = 0
+        withAnimation(.easeOut(duration: 1.0)) {
+            progress = 1
+        }
+    }
+}
+
 #Preview {
-    NavigationStack { CounterScreen(projectId: "p1") }.tint(Palette.primary)
+    NavigationStack { CounterScreen(projectId: "p1") }
+        .environment(PatternStore.shared)
+        .tint(Palette.primary)
 }

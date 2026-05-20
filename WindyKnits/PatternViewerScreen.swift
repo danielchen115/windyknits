@@ -362,5 +362,6 @@ private struct AbbrSheet: View {
         PatternViewerScreen(projectId: "p1")
             .navigationDestinationForRoutes()
     }
+    .environment(PatternStore.shared)
     .tint(Palette.primary)
 }

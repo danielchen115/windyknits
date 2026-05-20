@@ -1,12 +1,17 @@
 import SwiftUI
 
 struct YouScreen: View {
-    private let items = [
-        "Yarn stash",
-        "Needle inventory",
-        "Pattern library",
-        "Connected services",
-        "Settings"
+    private struct Row: Identifiable {
+        let id: String
+        let label: String
+        let route: Route?
+    }
+    private let items: [Row] = [
+        Row(id: "yarn", label: "Yarn stash", route: nil),
+        Row(id: "needles", label: "Needle inventory", route: nil),
+        Row(id: "library", label: "Pattern library", route: nil),
+        Row(id: "services", label: "Connected services", route: nil),
+        Row(id: "settings", label: "Settings", route: .settings)
     ]
 
     var body: some View {
@@ -42,18 +47,8 @@ struct YouScreen: View {
                     .padding(.top, 16)
 
                     VStack(spacing: 10) {
-                        ForEach(items, id: \.self) { item in
-                            SoftCard(padding: 14) {
-                                HStack {
-                                    Text(item)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(Palette.walnut)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(Palette.walnutMute)
-                                }
-                            }
+                        ForEach(items) { item in
+                            row(item)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -63,6 +58,30 @@ struct YouScreen: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    @ViewBuilder
+    private func row(_ item: Row) -> some View {
+        if let route = item.route {
+            NavigationLink(value: route) { rowBody(item.label) }
+                .buttonStyle(.plain)
+        } else {
+            rowBody(item.label)
+        }
+    }
+
+    private func rowBody(_ label: String) -> some View {
+        SoftCard(padding: 14) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Palette.walnut)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.walnutMute)
+            }
+        }
     }
 }
 

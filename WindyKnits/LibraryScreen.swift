@@ -11,6 +11,7 @@ struct LibraryScreen: View {
         }
     }
 
+    @Environment(PatternStore.self) private var store
     @State private var filter: Filter = .active
 
     var body: some View {
@@ -61,7 +62,7 @@ struct LibraryScreen: View {
     @ViewBuilder
     private var list: some View {
         VStack(spacing: 12) {
-            ForEach(SampleData.projects) { p in
+            ForEach(store.allProjects()) { p in
                 NavigationLink(value: Route.project(p.id)) {
                     LibraryCard(project: p)
                 }
@@ -107,5 +108,7 @@ private struct LibraryCard: View {
 }
 
 #Preview {
-    NavigationStack { LibraryScreen() }.tint(Palette.primary)
+    NavigationStack { LibraryScreen() }
+        .environment(PatternStore.shared)
+        .tint(Palette.primary)
 }

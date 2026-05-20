@@ -7,42 +7,71 @@ enum Route: Hashable {
     case pattern(String)
     case counter(String)
     case importPDF
+    case manualPattern
+    case settings
+}
+
+/// Per-tab navigation path holder. Descendants can read this via
+/// `@Environment(NavCoordinator.self)` to mutate the stack — e.g. to swap the
+/// manual-pattern flow out for a project-detail screen after saving.
+@Observable
+final class NavCoordinator {
+    var path = NavigationPath()
+
+    func push(_ route: Route) { path.append(route) }
+
+    /// Pops all pushed screens and lands on `route`. Used by the manual-pattern
+    /// Saved screen to return the user to the project they just created
+    /// without leaving the Import/Manual screens stacked underneath.
+    func resetTo(_ route: Route) {
+        path = NavigationPath()
+        path.append(route)
+    }
 }
 
 struct RootView: View {
     @State private var tab: AppTab = .today
-    @State private var todayPath = NavigationPath()
-    @State private var projectsPath = NavigationPath()
-    @State private var counterPath = NavigationPath()
-    @State private var youPath = NavigationPath()
+    @State private var todayNav    = NavCoordinator()
+    @State private var projectsNav = NavCoordinator()
+    @State private var counterNav  = NavCoordinator()
+    @State private var youNav      = NavCoordinator()
 
     var body: some View {
+        @Bindable var today    = todayNav
+        @Bindable var projects = projectsNav
+        @Bindable var counter  = counterNav
+        @Bindable var you      = youNav
+
         TabView(selection: $tab) {
-            NavigationStack(path: $todayPath) {
-                TodayScreen(path: $todayPath, switchTab: { tab = $0 })
+            NavigationStack(path: $today.path) {
+                TodayScreen(path: $today.path, switchTab: { tab = $0 })
                     .navigationDestinationForRoutes()
             }
+            .environment(todayNav)
             .tabItem { Label("Today", systemImage: "house.fill") }
             .tag(AppTab.today)
 
-            NavigationStack(path: $projectsPath) {
+            NavigationStack(path: $projects.path) {
                 LibraryScreen()
                     .navigationDestinationForRoutes()
             }
+            .environment(projectsNav)
             .tabItem { Label("Projects", systemImage: "books.vertical.fill") }
             .tag(AppTab.projects)
 
-            NavigationStack(path: $counterPath) {
+            NavigationStack(path: $counter.path) {
                 CounterScreen(projectId: "p1", showsBackButton: false)
                     .navigationDestinationForRoutes()
             }
+            .environment(counterNav)
             .tabItem { Label("Counter", systemImage: "number.square.fill") }
             .tag(AppTab.counter)
 
-            NavigationStack(path: $youPath) {
+            NavigationStack(path: $you.path) {
                 YouScreen()
                     .navigationDestinationForRoutes()
             }
+            .environment(youNav)
             .tabItem { Label("You", systemImage: "person.crop.circle.fill") }
             .tag(AppTab.you)
         }
@@ -59,9 +88,13 @@ extension View {
             case .pattern(let id):  PatternViewerScreen(projectId: id)
             case .counter(let id):  CounterScreen(projectId: id)
             case .importPDF:        ImportScreen()
+            case .manualPattern:    ManualPatternScreen()
+            case .settings:         SettingsScreen()
             }
         }
     }
 }
 
-#Preview { RootView() }
+#Preview {
+    RootView().environment(PatternStore.shared)
+}

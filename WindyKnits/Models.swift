@@ -1,10 +1,12 @@
 import SwiftUI
 
-struct Project: Identifiable, Hashable {
+struct Project: Identifiable, Hashable, Codable, Sendable {
     let id: String
     var title: String
     var designer: String
-    var swatch: Color
+    /// Stored as a hex int so the project can be encoded; the rendered swatch
+    /// uses the computed `swatch` property below.
+    var swatchHex: UInt32
     var yarn: String
     var color: String
     var needles: String
@@ -12,9 +14,51 @@ struct Project: Identifiable, Hashable {
     var rowsTotal: Int
     var lastWorked: String
     var notes: String?
+    /// Set when this project was created from an imported PDF.
+    var pattern: ParsedPattern? = nil
 
-    var progress: Double { Double(rowsDone) / Double(rowsTotal) }
+    var swatch: Color { Color(hex: swatchHex) }
+    var progress: Double { rowsTotal > 0 ? Double(rowsDone) / Double(rowsTotal) : 0 }
     var percentLabel: String { "\(Int((progress * 100).rounded()))%" }
+}
+
+// MARK: - Imported pattern
+
+struct ParsedPattern: Codable, Hashable, Sendable {
+    var fileName: String
+    var pageCount: Int
+    var fileSizeBytes: Int
+    var sections: [ParsedSection]
+    var rows: [ParsedRow]
+    var abbreviations: [String]
+
+    var fileSizeLabel: String {
+        let mb = Double(fileSizeBytes) / 1_048_576
+        if mb >= 0.1 { return String(format: "%.1f MB", mb) }
+        let kb = max(1, Int((Double(fileSizeBytes) / 1024).rounded()))
+        return "\(kb) KB"
+    }
+
+    var pagesLabel: String {
+        pageCount == 1 ? "1 page" : "\(pageCount) pages"
+    }
+}
+
+struct ParsedSection: Codable, Hashable, Identifiable, Sendable {
+    var id: UUID
+    var name: String
+    var rowCount: Int?
+    nonisolated init(id: UUID = UUID(), name: String, rowCount: Int? = nil) {
+        self.id = id; self.name = name; self.rowCount = rowCount
+    }
+}
+
+struct ParsedRow: Codable, Hashable, Identifiable, Sendable {
+    var id: Int { n }
+    let n: Int
+    let rs: Bool
+    let text: String
+    let sts: Int?
 }
 
 struct PatternRow: Identifiable, Hashable {
@@ -31,7 +75,7 @@ enum SampleData {
             id: "p1",
             title: "Marigold Cardigan",
             designer: "Petite Knit",
-            swatch: Palette.primary,
+            swatchHex: 0xd49aa3,
             yarn: "Sandnes Sunday",
             color: "Dusty Rose",
             needles: "3.5 mm",
@@ -44,7 +88,7 @@ enum SampleData {
             id: "p2",
             title: "Hay Socks",
             designer: "Pétur Ó.",
-            swatch: Palette.accent,
+            swatchHex: 0xc8a7c4,
             yarn: "Rauma Finullgarn",
             color: "Oat / Heather",
             needles: "2.25 mm",
@@ -57,7 +101,7 @@ enum SampleData {
             id: "p3",
             title: "Linen Wash Cloth",
             designer: "Own design",
-            swatch: Color(hex: 0xe2b5b1),
+            swatchHex: 0xe2b5b1,
             yarn: "Quince & Co Sparrow",
             color: "Honey",
             needles: "4 mm",
@@ -71,6 +115,9 @@ enum SampleData {
     static func project(id: String) -> Project {
         projects.first(where: { $0.id == id }) ?? projects[0]
     }
+
+    /// Default swatch hex used for freshly-imported patterns (Blossom primary).
+    static let importedSwatchHex: UInt32 = 0xd49aa3
 
     static let patternSection = "Yoke"
     static let patternTotalRows = 48

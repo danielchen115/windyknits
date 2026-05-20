@@ -280,5 +280,6 @@ struct ProjectRow: View {
         TodayScreen(path: $path)
             .navigationDestinationForRoutes()
     }
+    .environment(PatternStore.shared)
     .tint(Palette.primary)
 }
