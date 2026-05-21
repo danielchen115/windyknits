@@ -3,11 +3,14 @@ import SwiftUI
 struct TodayScreen: View {
     @Binding var path: NavigationPath
     var switchTab: (AppTab) -> Void = { _ in }
+    @Environment(\.scenePhase) private var scenePhase
     // Subscribed to the same keys CounterScreen writes to — stats tiles and
     // the "currently knitting" progress re-render automatically as rows are
     // advanced or completions are logged.
-    @AppStorage("counter.p1.rows") private var currentRow: Int = 5
-    @AppStorage("counter.p1.history") private var historyJSON: String = "[]"
+    @AppStorage(SharedStore.Keys.rows("p1"), store: SharedStore.defaults)
+    private var currentRow: Int = 5
+    @AppStorage(SharedStore.Keys.history("p1"), store: SharedStore.defaults)
+    private var historyJSON: String = "[]"
 
     init(path: Binding<NavigationPath> = .constant(NavigationPath()),
          switchTab: @escaping (AppTab) -> Void = { _ in }) {
@@ -68,6 +71,18 @@ struct TodayScreen: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: scenePhase) { _, new in
+            if new == .active { reloadFromAppGroup() }
+        }
+        .onAppear(perform: reloadFromAppGroup)
+    }
+
+    /// See CounterScreen.reloadFromAppGroup — same fix for cross-process
+    /// writes by the Live Activity intent.
+    private func reloadFromAppGroup() {
+        let d = SharedStore.defaults
+        currentRow = d.integer(forKey: SharedStore.Keys.rows("p1"))
+        historyJSON = d.string(forKey: SharedStore.Keys.history("p1")) ?? "[]"
     }
 
     // MARK: greeting

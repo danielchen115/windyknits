@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 
 struct CounterScreen: View {
@@ -5,6 +6,7 @@ struct CounterScreen: View {
     var showsBackButton: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PatternStore.self) private var store
 
     // Persisted per project, so each project keeps its own counters across launches.
@@ -24,6 +26,10 @@ struct CounterScreen: View {
     @State private var celebrationRepeat: Int? = nil
     // Increment to trigger a new confetti burst on the primary card.
     @State private var confettiTrigger: Int = 0
+    // True while a Live Activity is broadcasting this project to the Lock
+    // Screen. Mirrors `Activity.activities` — refreshed on appear and after
+    // start/end calls.
+    @State private var sessionActive: Bool = false
 
     init(projectId: String = "p1", showsBackButton: Bool = true) {
         self.projectId = projectId
@@ -34,12 +40,17 @@ struct CounterScreen: View {
         let isSample = SampleData.projects.contains(where: { $0.id == projectId })
         let defaultRows     = isSample ? 5  : 0
         let defaultStitches = isSample ? 34 : 0
-        _rows        = AppStorage(wrappedValue: defaultRows,     "counter.\(projectId).rows")
-        _stitches    = AppStorage(wrappedValue: defaultStitches, "counter.\(projectId).stitches")
-        _linked      = AppStorage(wrappedValue: true, "counter.\(projectId).linked")
+        let store = SharedStore.defaults
+        _rows        = AppStorage(wrappedValue: defaultRows,
+                                  SharedStore.Keys.rows(projectId), store: store)
+        _stitches    = AppStorage(wrappedValue: defaultStitches,
+                                  SharedStore.Keys.stitches(projectId), store: store)
+        _linked      = AppStorage(wrappedValue: true,
+                                  SharedStore.Keys.linked(projectId), store: store)
         _activeRaw   = AppStorage(wrappedValue: ActiveCounter.stitches.rawValue,
-                                  "counter.\(projectId).active")
-        _historyJSON = AppStorage(wrappedValue: "[]", "counter.\(projectId).history")
+                                  SharedStore.Keys.active(projectId), store: store)
+        _historyJSON = AppStorage(wrappedValue: "[]",
+                                  SharedStore.Keys.history(projectId), store: store)
     }
 
     private var repeats: Int {
@@ -125,9 +136,113 @@ struct CounterScreen: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: rows, handleRowsChange)
+            .onChange(of: scenePhase) { _, new in
+                if new == .active { reloadFromAppGroup() }
+            }
+            .onAppear {
+                refreshSessionState()
+                reloadFromAppGroup()
+            }
             .sensoryFeedback(.increase, trigger: stitches, condition: didIncrease)
             .sensoryFeedback(.impact(weight: .heavy), trigger: rows, condition: didIncrease)
             .sensoryFeedback(.success, trigger: repeats, condition: didIncrease)
+    }
+
+    /// Pull counter values back out of the App Group UserDefaults and write
+    /// them through the @AppStorage setters. `IncrementRowIntent` runs in
+    /// the widget extension process when the Live Activity +1 button is
+    /// tapped, and those writes don't notify the app's in-process KVO — so
+    /// without this re-sync, the counter screen shows a stale value until
+    /// the next in-app mutation forces a read.
+    private func reloadFromAppGroup() {
+        let d = SharedStore.defaults
+        rows = d.integer(forKey: SharedStore.Keys.rows(projectId))
+        stitches = d.integer(forKey: SharedStore.Keys.stitches(projectId))
+        historyJSON = d.string(forKey: SharedStore.Keys.history(projectId)) ?? "[]"
+    }
+
+    // MARK: Live Activity
+
+    private func refreshSessionState() {
+        sessionActive = Activity<CounterActivityAttributes>.activities
+            .contains { $0.attributes.projectId == projectId }
+    }
+
+    private func toggleSession() {
+        if sessionActive { endSession() } else { startSession() }
+    }
+
+    private func startSession() {
+        // Mirror the pattern's per-row instruction text into the App Group
+        // so the Live Activity intents can populate ContentState.currentRowText
+        // without linking PatternStore.
+        seedRowTexts()
+
+        let attrs = CounterActivityAttributes(
+            projectId: projectId,
+            projectTitle: project.title,
+            rowsTotal: rowsGoal)
+        let state = CounterActivityAttributes.ContentState(
+            rows: rows,
+            currentRowText: currentRowInstruction)
+        do {
+            _ = try Activity.request(
+                attributes: attrs,
+                content: ActivityContent(state: state, staleDate: nil),
+                pushType: nil)
+            sessionActive = true
+        } catch {
+            // The most common reason this fails is the user disabling Live
+            // Activities for the app in Settings. We don't surface an error
+            // because the toggle just won't flip — quiet failure is fine here.
+        }
+    }
+
+    private func seedRowTexts() {
+        var texts: [Int: String] = [:]
+        if let p = project.pattern {
+            for row in p.rows { texts[row.n] = row.text }
+        } else if usesSampleChart {
+            for row in SampleData.pattern { texts[row.n] = row.text }
+        }
+        SharedStore.setRowTexts(texts, projectId: projectId)
+    }
+
+    private var currentRowInstruction: String? {
+        SharedStore.rowText(forRow: rows + 1, projectId: projectId)
+    }
+
+    private func endSession() {
+        let final = CounterActivityAttributes.ContentState(
+            rows: rows, currentRowText: currentRowInstruction)
+        let matching = Activity<CounterActivityAttributes>.activities
+            .filter { $0.attributes.projectId == projectId }
+        Task {
+            for activity in matching {
+                await activity.end(
+                    ActivityContent(state: final, staleDate: nil),
+                    dismissalPolicy: .immediate)
+            }
+        }
+        sessionActive = false
+    }
+
+    /// Push the latest row count into any active Live Activity for this
+    /// project. Idempotent — safe to call on every row change. We don't
+    /// branch on `sessionActive` because that's a UI mirror, not a source
+    /// of truth.
+    private func syncActivityRows() {
+        let matching = Activity<CounterActivityAttributes>.activities
+            .filter { $0.attributes.projectId == projectId }
+        guard !matching.isEmpty else { return }
+        let state = CounterActivityAttributes.ContentState(
+            rows: rows, currentRowText: currentRowInstruction)
+        Task {
+            for activity in matching {
+                await activity.update(
+                    ActivityContent(state: state, staleDate: nil))
+            }
+        }
     }
 
     @ViewBuilder
@@ -141,6 +256,7 @@ struct CounterScreen: View {
 
     private func handleRowsChange(_ oldValue: Int, _ newValue: Int) {
         recordCompletions(from: oldValue, to: newValue)
+        syncActivityRows()
         guard newValue > oldValue, oldValue >= 1 else { return }
         let rpr = rowsPerRepeat
         let oldRepeat = ((oldValue - 1) / rpr) + 1
@@ -169,6 +285,7 @@ struct CounterScreen: View {
                     primaryPad
                     secondaryRow
                     linkedCard
+                    sessionCard
                     historyHeader
                     historyCard
                     Color.clear.frame(height: 40)
@@ -508,6 +625,40 @@ struct CounterScreen: View {
                     Text(hasStitchGoal
                          ? "When you hit \(stitchGoal), the row counter advances."
                          : "Add a stitch count to this row to auto-advance.")
+                        .meta(size: 12)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: Lock Screen session toggle
+
+    private var sessionCard: some View {
+        SoftCard(padding: 14) {
+            HStack(spacing: 12) {
+                ZStack(alignment: sessionActive ? .trailing : .leading) {
+                    Capsule()
+                        .fill(sessionActive ? Palette.accent : Palette.creamSoft)
+                        .frame(width: 40, height: 24)
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 20, height: 20)
+                        .padding(2)
+                        .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+                }
+                .animation(.spring(response: 0.25), value: sessionActive)
+                .onTapGesture { toggleSession() }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Lock Screen counter")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.walnut)
+                    Text(sessionActive
+                         ? "Active — tap +1 on your Lock Screen to add rows."
+                         : "Show this counter on your Lock Screen for the session.")
                         .meta(size: 12)
                 }
                 Spacer(minLength: 0)

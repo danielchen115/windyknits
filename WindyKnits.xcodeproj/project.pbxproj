@@ -6,11 +6,75 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7850050D2FBE962600DCEDB8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7850050C2FBE962600DCEDB8 /* WidgetKit.framework */; };
+		7850050F2FBE962600DCEDB8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7850050E2FBE962600DCEDB8 /* SwiftUI.framework */; };
+		7850051C2FBE962800DCEDB8 /* WindyKnitsWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7850050A2FBE962600DCEDB8 /* WindyKnitsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		7850052E2FBEA68500DCEDB8 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850052C2FBEA68500DCEDB8 /* SharedStore.swift */; };
+		7850052F2FBEA68500DCEDB8 /* CounterIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850052B2FBEA68500DCEDB8 /* CounterIntents.swift */; };
+		785005302FBEA68500DCEDB8 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850052C2FBEA68500DCEDB8 /* SharedStore.swift */; };
+		785005312FBEA68500DCEDB8 /* CounterIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850052B2FBEA68500DCEDB8 /* CounterIntents.swift */; };
+		D17E600000000000000031AA /* CounterActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17E600000000000000030AA /* CounterActivityAttributes.swift */; };
+		D17E600000000000000032AA /* CounterActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17E600000000000000030AA /* CounterActivityAttributes.swift */; };
+		D17E600000000000000041AA /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17E600000000000000040AA /* Palette.swift */; };
+		D17E600000000000000042AA /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17E600000000000000040AA /* Palette.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7850051A2FBE962800DCEDB8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 787E6DFB2FBCBDB000E9259A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 785005092FBE962600DCEDB8;
+			remoteInfo = WindyKnitsWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		785005212FBE962800DCEDB8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				7850051C2FBE962800DCEDB8 /* WindyKnitsWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		7850050A2FBE962600DCEDB8 /* WindyKnitsWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WindyKnitsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7850050C2FBE962600DCEDB8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		7850050E2FBE962600DCEDB8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		7850052B2FBEA68500DCEDB8 /* CounterIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterIntents.swift; sourceTree = "<group>"; };
+		7850052C2FBEA68500DCEDB8 /* SharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
+		D17E600000000000000030AA /* CounterActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterActivityAttributes.swift; sourceTree = "<group>"; };
+		D17E600000000000000040AA /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		785005322FBEA88200DCEDB8 /* WindyKnitsWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WindyKnitsWidgetExtension.entitlements; sourceTree = "<group>"; };
 		787E6E032FBCBDB000E9259A /* WindyKnits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WindyKnits.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D17E600000000000000020AA /* Exceptions for "WindyKnitsWidget" folder in "WindyKnitsWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		785005102FBE962600DCEDB8 /* WindyKnitsWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D17E600000000000000020AA /* Exceptions for "WindyKnitsWidget" folder in "WindyKnitsWidgetExtension" target */,
+			);
+			path = WindyKnitsWidget;
+			sourceTree = "<group>";
+		};
 		787E6E052FBCBDB000E9259A /* WindyKnits */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WindyKnits;
@@ -19,6 +83,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		785005072FBE962600DCEDB8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7850050F2FBE962600DCEDB8 /* SwiftUI.framework in Frameworks */,
+				7850050D2FBE962600DCEDB8 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		787E6E002FBCBDB000E9259A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -29,11 +102,35 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7850050B2FBE962600DCEDB8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7850050C2FBE962600DCEDB8 /* WidgetKit.framework */,
+				7850050E2FBE962600DCEDB8 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		7850052D2FBEA68500DCEDB8 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D17E600000000000000030AA /* CounterActivityAttributes.swift */,
+				7850052B2FBEA68500DCEDB8 /* CounterIntents.swift */,
+				D17E600000000000000040AA /* Palette.swift */,
+				7850052C2FBEA68500DCEDB8 /* SharedStore.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		787E6DFA2FBCBDB000E9259A = {
 			isa = PBXGroup;
 			children = (
+				785005322FBEA88200DCEDB8 /* WindyKnitsWidgetExtension.entitlements */,
 				787E6E052FBCBDB000E9259A /* WindyKnits */,
+				785005102FBE962600DCEDB8 /* WindyKnitsWidget */,
+				7850050B2FBE962600DCEDB8 /* Frameworks */,
 				787E6E042FBCBDB000E9259A /* Products */,
+				7850052D2FBEA68500DCEDB8 /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -41,6 +138,7 @@
 			isa = PBXGroup;
 			children = (
 				787E6E032FBCBDB000E9259A /* WindyKnits.app */,
+				7850050A2FBE962600DCEDB8 /* WindyKnitsWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +146,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7850051E2FBE962800DCEDB8 /* Build configuration list for PBXNativeTarget "WindyKnitsWidgetExtension" */;
+			buildPhases = (
+				785005062FBE962600DCEDB8 /* Sources */,
+				785005072FBE962600DCEDB8 /* Frameworks */,
+				785005082FBE962600DCEDB8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				785005102FBE962600DCEDB8 /* WindyKnitsWidget */,
+			);
+			name = WindyKnitsWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = WindyKnitsWidgetExtension;
+			productReference = 7850050A2FBE962600DCEDB8 /* WindyKnitsWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		787E6E022FBCBDB000E9259A /* WindyKnits */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 787E6E0E2FBCBDB300E9259A /* Build configuration list for PBXNativeTarget "WindyKnits" */;
@@ -55,10 +175,12 @@
 				787E6DFF2FBCBDB000E9259A /* Sources */,
 				787E6E002FBCBDB000E9259A /* Frameworks */,
 				787E6E012FBCBDB000E9259A /* Resources */,
+				785005212FBE962800DCEDB8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7850051B2FBE962800DCEDB8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				787E6E052FBCBDB000E9259A /* WindyKnits */,
@@ -80,6 +202,10 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					785005092FBE962600DCEDB8 = {
+						CreatedOnToolsVersion = 26.5;
+						LastSwiftMigration = 2650;
+					};
 					787E6E022FBCBDB000E9259A = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -100,11 +226,19 @@
 			projectRoot = "";
 			targets = (
 				787E6E022FBCBDB000E9259A /* WindyKnits */,
+				785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		785005082FBE962600DCEDB8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		787E6E012FBCBDB000E9259A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,16 +249,104 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		785005062FBE962600DCEDB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D17E600000000000000031AA /* CounterActivityAttributes.swift in Sources */,
+				D17E600000000000000041AA /* Palette.swift in Sources */,
+				785005302FBEA68500DCEDB8 /* SharedStore.swift in Sources */,
+				785005312FBEA68500DCEDB8 /* CounterIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		787E6DFF2FBCBDB000E9259A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D17E600000000000000032AA /* CounterActivityAttributes.swift in Sources */,
+				D17E600000000000000042AA /* Palette.swift in Sources */,
+				7850052E2FBEA68500DCEDB8 /* SharedStore.swift in Sources */,
+				7850052F2FBEA68500DCEDB8 /* CounterIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		7850051B2FBE962800DCEDB8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */;
+			targetProxy = 7850051A2FBE962800DCEDB8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		7850051F2FBE962800DCEDB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = WindyKnitsWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72767AGBJ3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WindyKnitsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WindyKnitsWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.WindyKnitsWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		785005202FBE962800DCEDB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = WindyKnitsWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72767AGBJ3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WindyKnitsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WindyKnitsWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.WindyKnitsWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		787E6E0C2FBCBDB300E9259A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -251,6 +473,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WindyKnits/WindyKnits.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
@@ -259,6 +482,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -283,6 +507,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WindyKnits/WindyKnits.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
@@ -291,6 +516,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -313,6 +539,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		7850051E2FBE962800DCEDB8 /* Build configuration list for PBXNativeTarget "WindyKnitsWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7850051F2FBE962800DCEDB8 /* Debug */,
+				785005202FBE962800DCEDB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		787E6DFE2FBCBDB000E9259A /* Build configuration list for PBXProject "WindyKnits" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -4,6 +4,7 @@ struct PatternViewerScreen: View {
     let projectId: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(PatternStore.self) private var store
     // Shared with CounterScreen via the same AppStorage key — advancing in
     // either screen propagates to the other.
@@ -16,7 +17,8 @@ struct PatternViewerScreen: View {
         // Sample projects show curated mid-flow state; everything else starts at 0.
         let isSample = SampleData.projects.contains(where: { $0.id == projectId })
         _current = AppStorage(wrappedValue: isSample ? 5 : 0,
-                              "counter.\(projectId).rows")
+                              SharedStore.Keys.rows(projectId),
+                              store: SharedStore.defaults)
     }
 
     private var project: Project {
@@ -84,6 +86,12 @@ struct PatternViewerScreen: View {
         let definition: String?
     }
 
+    /// See CounterScreen.reloadFromAppGroup — same fix for cross-process
+    /// writes by the Live Activity intent.
+    private func reloadFromAppGroup() {
+        current = SharedStore.defaults.integer(forKey: SharedStore.Keys.rows(projectId))
+    }
+
     var body: some View {
         ZStack {
             Palette.cream.ignoresSafeArea()
@@ -99,6 +107,10 @@ struct PatternViewerScreen: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: scenePhase) { _, new in
+            if new == .active { reloadFromAppGroup() }
+        }
+        .onAppear(perform: reloadFromAppGroup)
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "abbr" else { return .systemAction }
             let key = url.host ?? url.path.trimmingCharacters(in: .init(charactersIn: "/"))
