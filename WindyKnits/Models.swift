@@ -17,6 +17,13 @@ struct Project: Identifiable, Hashable, Codable, Sendable {
     /// Set when this project was created from an imported PDF.
     var pattern: ParsedPattern? = nil
 
+    /// Optional metadata surfaced on the Overview tab. All nullable so older
+    /// stored projects keep decoding and creation flows can omit them.
+    var patternType: String? = nil
+    var size: String? = nil
+    var gauge: String? = nil
+    var createdAt: Date? = nil
+
     var swatch: Color { Color(hex: swatchHex) }
     var progress: Double { rowsTotal > 0 ? Double(rowsDone) / Double(rowsTotal) : 0 }
     var percentLabel: String { "\(Int((progress * 100).rounded()))%" }
@@ -82,7 +89,10 @@ enum SampleData {
             rowsDone: 47,
             rowsTotal: 184,
             lastWorked: "Yesterday",
-            notes: "Going up a size at the hips — added 4 stitches each side at row 38."
+            notes: "Going up a size at the hips — added 4 stitches each side at row 38.",
+            patternType: "Top-down raglan",
+            size: "S (34\" bust)",
+            gauge: "22 sts × 30 rows / 10cm"
         ),
         Project(
             id: "p2",
@@ -95,7 +105,10 @@ enum SampleData {
             rowsDone: 12,
             rowsTotal: 64,
             lastWorked: "3 days ago",
-            notes: nil
+            notes: nil,
+            patternType: "Toe-up sock",
+            size: "Women's M",
+            gauge: "32 sts × 44 rows / 10cm"
         ),
         Project(
             id: "p3",
@@ -108,7 +121,10 @@ enum SampleData {
             rowsDone: 28,
             rowsTotal: 30,
             lastWorked: "1 week ago",
-            notes: nil
+            notes: nil,
+            patternType: "Garter square",
+            size: "30 × 30 cm",
+            gauge: nil
         )
     ]
 

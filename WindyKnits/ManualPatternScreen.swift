@@ -11,10 +11,89 @@ struct ManualPattern {
     var sections: [ManualSection] = [.init(name: "Setup")]
     var activeSectionId: UUID
 
+    // Optional details surfaced on the Overview / Materials / Notes tabs.
+    var patternType: String = ""
+    var size: String = ""
+    var gauge: String = ""
+    var yarn: String = ""
+    var color: String = ""
+    var needles: String = ""
+    var notes: String = ""
+
     init() {
         let first = ManualSection(name: "Setup")
         self.sections = [first]
         self.activeSectionId = first.id
+    }
+
+    /// Builds an editable ManualPattern from an existing project. For sample
+    /// projects (which don't carry their own ParsedPattern) it synthesises one
+    /// from the bundled SampleData chart so the editor isn't empty.
+    static func from(_ project: Project) -> ManualPattern {
+        var p = ManualPattern()
+        p.title       = project.title
+        p.designer    = project.designer
+        p.swatchHex   = project.swatchHex
+        p.patternType = project.patternType ?? ""
+        p.size        = project.size ?? ""
+        p.gauge       = project.gauge ?? ""
+        p.yarn        = project.yarn
+        p.color       = project.color
+        p.needles     = project.needles
+        p.notes       = project.notes ?? ""
+
+        let parsed: ParsedPattern? = {
+            if let pp = project.pattern { return pp }
+            if SampleData.projects.contains(where: { $0.id == project.id }) {
+                let rows = SampleData.pattern.map {
+                    ParsedRow(n: $0.n, rs: $0.rs, text: $0.text, sts: $0.sts)
+                }
+                return ParsedPattern(
+                    fileName: "",
+                    pageCount: 0,
+                    fileSizeBytes: 0,
+                    sections: [ParsedSection(name: SampleData.patternSection,
+                                              rowCount: rows.count)],
+                    rows: rows,
+                    abbreviations: Array(SampleData.abbreviations.keys)
+                )
+            }
+            return nil
+        }()
+
+        if let parsed, !parsed.rows.isEmpty {
+            // Re-associate flat rows with their sections using each section's
+            // rowCount. Rows that fall outside any section's range get grouped
+            // into a trailing "Pattern" section so nothing is silently lost.
+            var sections: [ManualSection] = []
+            var cursor = 0
+            for ps in parsed.sections {
+                let count = ps.rowCount ?? 0
+                let end   = min(cursor + count, parsed.rows.count)
+                let slice = Array(parsed.rows[cursor..<end])
+                cursor = end
+                sections.append(ManualSection(name: ps.name, rows: slice.map(Self.toManualRow)))
+            }
+            if cursor < parsed.rows.count {
+                let tail = Array(parsed.rows[cursor..<parsed.rows.count])
+                sections.append(ManualSection(name: "Pattern", rows: tail.map(Self.toManualRow)))
+            }
+            if sections.isEmpty {
+                sections = [ManualSection(name: "Pattern",
+                                          rows: parsed.rows.map(Self.toManualRow))]
+            }
+            p.sections = sections
+            p.activeSectionId = sections[0].id
+        }
+        return p
+    }
+
+    private static func toManualRow(_ pr: ParsedRow) -> ManualRow {
+        ManualRow(kind: .row(
+            side: pr.rs ? .RS : .WS,
+            text: pr.text,
+            sts: pr.sts.map(String.init) ?? ""
+        ))
     }
 }
 
@@ -206,20 +285,30 @@ struct ManualPatternScreen: View {
                                     rows: rows,
                                     abbreviations: [])
         let displayTitle = pattern.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let notesTrimmed = pattern.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         return Project(
             id: UUID().uuidString,
             title: displayTitle.isEmpty ? "Untitled pattern" : displayTitle,
             designer: pattern.designer.trimmingCharacters(in: .whitespacesAndNewlines),
             swatchHex: pattern.swatchHex,
-            yarn: "",
-            color: "",
-            needles: "",
+            yarn: pattern.yarn.trimmingCharacters(in: .whitespacesAndNewlines),
+            color: pattern.color.trimmingCharacters(in: .whitespacesAndNewlines),
+            needles: pattern.needles.trimmingCharacters(in: .whitespacesAndNewlines),
             rowsDone: 0,
             rowsTotal: rows.count,
             lastWorked: "Just added",
-            notes: nil,
-            pattern: parsed
+            notes: notesTrimmed.isEmpty ? nil : notesTrimmed,
+            pattern: parsed,
+            patternType: trimToNil(pattern.patternType),
+            size: trimToNil(pattern.size),
+            gauge: trimToNil(pattern.gauge),
+            createdAt: Date()
         )
+    }
+
+    private func trimToNil(_ s: String) -> String? {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 }
 
@@ -229,6 +318,7 @@ private struct ManualStart: View {
     @Binding var pattern: ManualPattern
     var onContinue: () -> Void
 
+    @State private var showDetails: Bool = false
     private let coverChoices: [UInt32] = [0xd49aa3, 0xc8a7c4, 0x7b8b6f, 0xc97c5d]
 
     private var canContinue: Bool {
@@ -325,6 +415,9 @@ private struct ManualStart: View {
             }
             .padding(.top, 24)
 
+            detailsDisclosure
+                .padding(.top, 20)
+
             Button(action: { if canContinue { onContinue() } }) {
                 Text("Start adding instructions")
                     .font(.system(size: 15, weight: .semibold))
@@ -341,7 +434,7 @@ private struct ManualStart: View {
             .disabled(!canContinue)
             .padding(.top, 28)
 
-            Text("You can add yarn, gauge, and notes later.")
+            Text("You can edit any of these later.")
                 .font(.system(size: 12))
                 .foregroundStyle(Palette.walnutMute)
                 .frame(maxWidth: .infinity)
@@ -349,6 +442,97 @@ private struct ManualStart: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 32)
+    }
+
+    @ViewBuilder
+    private var detailsDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) { showDetails.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("More details")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.walnut)
+                    Text("Optional")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Palette.walnutMute)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(Palette.creamSoft))
+                    Spacer()
+                    Image(systemName: showDetails ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.walnutMute)
+                }
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(PressScaleStyle())
+
+            if showDetails {
+                VStack(spacing: 14) {
+                    FormField(label: "Pattern type",
+                              hint: "e.g. Top-down raglan") {
+                        plainTextInput(text: $pattern.patternType,
+                                       placeholder: "Sweater, cowl, socks…")
+                    }
+                    FormField(label: "Size") {
+                        plainTextInput(text: $pattern.size,
+                                       placeholder: "S, M, 34\" bust…")
+                    }
+                    FormField(label: "Gauge") {
+                        plainTextInput(text: $pattern.gauge,
+                                       placeholder: "22 sts × 30 rows / 10cm")
+                    }
+                    FormField(label: "Yarn") {
+                        plainTextInput(text: $pattern.yarn,
+                                       placeholder: "Brand + line")
+                    }
+                    FormField(label: "Yarn color") {
+                        plainTextInput(text: $pattern.color,
+                                       placeholder: "Colorway or color name")
+                    }
+                    FormField(label: "Needles") {
+                        plainTextInput(text: $pattern.needles,
+                                       placeholder: "3.5 mm, 4 mm circular…")
+                    }
+                    FormField(label: "Notes",
+                              hint: "Modifications, errata, anything to remember.") {
+                        TextEditor(text: $pattern.notes)
+                            .font(.system(size: 14))
+                            .foregroundStyle(Palette.walnut)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 80)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Palette.paper)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(Palette.line, lineWidth: 0.5)
+                            )
+                    }
+                }
+                .padding(.top, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func plainTextInput(text: Binding<String>, placeholder: String) -> some View {
+        TextField(placeholder, text: text)
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Palette.paper)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 0.5)
+            )
+            .font(.system(size: 15))
+            .foregroundStyle(Palette.walnut)
     }
 }
 
@@ -386,7 +570,7 @@ private struct FormField<Content: View>: View {
 
 // MARK: - Build step
 
-private struct ManualBuild: View {
+struct ManualBuild: View {
     @Binding var pattern: ManualPattern
 
     @State private var draft: String = ""

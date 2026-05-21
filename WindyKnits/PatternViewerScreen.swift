@@ -4,6 +4,7 @@ struct PatternViewerScreen: View {
     let projectId: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(PatternStore.self) private var store
     // Shared with CounterScreen via the same AppStorage key — advancing in
     // either screen propagates to the other.
     @AppStorage private var current: Int
@@ -12,29 +13,70 @@ struct PatternViewerScreen: View {
 
     init(projectId: String) {
         self.projectId = projectId
-        _current = AppStorage(wrappedValue: 5, "counter.\(projectId).rows")
+        // Sample projects show curated mid-flow state; everything else starts at 0.
+        let isSample = SampleData.projects.contains(where: { $0.id == projectId })
+        _current = AppStorage(wrappedValue: isSample ? 5 : 0,
+                              "counter.\(projectId).rows")
     }
 
-    private var rows: [PatternRow] { SampleData.pattern }
+    private var project: Project {
+        store.project(id: projectId) ?? SampleData.project(id: projectId)
+    }
 
-    // The chart is `rowsPerRepeat` rows that tile vertically. UI shows the
-    // chart cycle and tracks the user's position *within* the current repeat,
-    // so absolute row 17 displays as "chart row 5 of 12, repeat 2 of 4".
+    // True for the bundled demo projects (p1/p2/p3) — they ride on the static
+    // SampleData chart with vertical repeats. Imported and manual patterns bring
+    // their own flat row list with no repeat cadence.
+    private var usesSampleChart: Bool { project.pattern == nil }
+
+    private var rows: [PatternRow] {
+        if let p = project.pattern {
+            return p.rows.map { PatternRow(n: $0.n, rs: $0.rs, text: $0.text, sts: $0.sts ?? 0) }
+        }
+        return SampleData.pattern
+    }
+    private var totalRows: Int {
+        usesSampleChart ? SampleData.patternTotalRows : rows.count
+    }
+    private var rowsPerRepeat: Int {
+        usesSampleChart ? SampleData.rowsPerRepeat : max(1, totalRows)
+    }
+
+    // For sample data the UI shows the chart cycle (rowInRepeat / repeatNumber);
+    // for project patterns the chart cycle collapses to "absolute row, 1 of 1".
     private var rowInRepeat: Int {
         let c = max(current, 1)
-        return ((c - 1) % SampleData.rowsPerRepeat) + 1
+        if usesSampleChart {
+            return ((c - 1) % SampleData.rowsPerRepeat) + 1
+        }
+        return min(c, max(1, totalRows))
     }
     private var repeatNumber: Int {
+        guard usesSampleChart else { return 1 }
         let c = max(current, 1)
         return ((c - 1) / SampleData.rowsPerRepeat) + 1
     }
     private var totalRepeats: Int {
-        max(1, SampleData.patternTotalRows / SampleData.rowsPerRepeat)
+        usesSampleChart ? max(1, SampleData.patternTotalRows / SampleData.rowsPerRepeat) : 1
     }
     private var sectionComplete: Bool {
-        current >= SampleData.patternTotalRows
+        totalRows > 0 && current >= totalRows
     }
     private var currentRow: PatternRow? { rows.first { $0.n == rowInRepeat } }
+
+    private var sectionTitle: String {
+        if usesSampleChart { return SampleData.patternSection }
+        return project.pattern?.sections.first?.name ?? project.title
+    }
+
+    // Set of known abbreviation tokens (lowercased). For imported/manual patterns
+    // we only have the list of abbreviations, not definitions — the sheet falls
+    // back to a "tap to add" prompt for unknown definitions.
+    private var abbrTokens: Set<String> {
+        if let p = project.pattern {
+            return Set(p.abbreviations.map { $0.lowercased() })
+        }
+        return Set(SampleData.abbreviations.keys.map { $0.lowercased() })
+    }
 
     struct TappedAbbr: Identifiable {
         let id = UUID()
@@ -77,9 +119,10 @@ struct PatternViewerScreen: View {
         HStack {
             CircleIconButton(system: "chevron.left") { dismiss() }
             Spacer()
-            Text(SampleData.patternSection)
+            Text(sectionTitle)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Palette.walnut)
+                .lineLimit(1)
             Spacer()
             HStack(spacing: 8) {
                 Button {
@@ -111,26 +154,28 @@ struct PatternViewerScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Current row").eyebrow(color: Palette.primaryDark)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(rowInRepeat)")
+                    Text("\(max(rowInRepeat, totalRows == 0 ? 0 : 1))")
                         .font(AppFont.serif(30))
                         .foregroundStyle(Palette.walnut)
                         .monospacedDigit()
-                    Text("of \(SampleData.rowsPerRepeat)").meta()
+                    Text("of \(rowsPerRepeat)").meta()
                 }
-                Text("Repeat \(repeatNumber) of \(totalRepeats) · Row \(current) of \(SampleData.patternTotalRows)")
+                Text(progressSubtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(Palette.walnutMute)
                     .padding(.top, 2)
             }
             Spacer()
             if let r = currentRow {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Stitches").eyebrow()
-                    Text("\(r.sts)")
-                        .font(AppFont.mono(16, weight: .semibold))
-                        .foregroundStyle(Palette.walnut)
+                if r.sts > 0 {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Stitches").eyebrow()
+                        Text("\(r.sts)")
+                            .font(AppFont.mono(16, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                    }
+                    .padding(.trailing, 16)
                 }
-                .padding(.trailing, 16)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Side").eyebrow()
                     Text(r.rs ? "RS" : "WS")
@@ -141,6 +186,14 @@ struct PatternViewerScreen: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 12)
+    }
+
+    private var progressSubtitle: String {
+        if usesSampleChart {
+            return "Repeat \(repeatNumber) of \(totalRepeats) · Row \(current) of \(totalRows)"
+        }
+        guard totalRows > 0 else { return "No rows yet" }
+        return "Row \(min(max(current, 1), totalRows)) of \(totalRows)"
     }
 
     private var voiceBanner: some View {
@@ -166,32 +219,66 @@ struct PatternViewerScreen: View {
 
     // MARK: rows
 
+    @ViewBuilder
     private var rowList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 4) {
-                    ForEach(rows) { r in
-                        rowView(r)
-                            .id(r.n)
-                            .onTapGesture {
-                                // Tapping a chart row sets us to that row inside the
-                                // current repeat (not absolute row r.n).
-                                let base = (max(repeatNumber, 1) - 1) * SampleData.rowsPerRepeat
-                                withAnimation(.easeInOut(duration: 0.18)) {
-                                    current = base + r.n
+        if rows.isEmpty {
+            emptyRowsState
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(rows) { r in
+                            rowView(r)
+                                .id(r.n)
+                                .onTapGesture {
+                                    let next: Int = {
+                                        if usesSampleChart {
+                                            // Stay within the current repeat — absolute row =
+                                            // (current repeat's start) + the tapped chart row.
+                                            let base = (max(repeatNumber, 1) - 1) * SampleData.rowsPerRepeat
+                                            return base + r.n
+                                        }
+                                        return r.n
+                                    }()
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        current = next
+                                    }
                                 }
-                            }
+                        }
+                        Color.clear.frame(height: 60)
                     }
-                    Color.clear.frame(height: 60)
+                    .padding(.horizontal, 12)
                 }
-                .padding(.horizontal, 12)
-            }
-            .onChange(of: current) { _, _ in
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(rowInRepeat, anchor: .center)
+                .onChange(of: current) { _, _ in
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo(rowInRepeat, anchor: .center)
+                    }
                 }
             }
         }
+    }
+
+    private var emptyRowsState: some View {
+        VStack(spacing: 12) {
+            Spacer(minLength: 40)
+            Image(systemName: "doc.text")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(Palette.primaryDark)
+                .frame(width: 72, height: 72)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Palette.creamWarm))
+            Text("No rows yet.")
+                .font(AppFont.serif(20))
+                .foregroundStyle(Palette.walnut)
+            Text("This pattern doesn't have any instruction rows. Go back to the editor to add some.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.walnutMute)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+                .frame(maxWidth: 280)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
     @ViewBuilder
@@ -222,9 +309,11 @@ struct PatternViewerScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .tint(textColor)
 
-            Text("\(r.sts)st")
-                .font(AppFont.mono(11))
-                .foregroundStyle(textColor.opacity(0.55))
+            if r.sts > 0 {
+                Text("\(r.sts)st")
+                    .font(AppFont.mono(11))
+                    .foregroundStyle(textColor.opacity(0.55))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -278,7 +367,7 @@ struct PatternViewerScreen: View {
             var part = AttributedString(piece)
             part.font = .system(size: 14, design: .monospaced)
             part.foregroundColor = color
-            if !key.isEmpty, SampleData.abbreviations[key] != nil {
+            if !key.isEmpty, abbrTokens.contains(key) {
                 part.font = .system(size: 14, weight: .semibold, design: .monospaced)
                 part.underlineStyle = .single
                 part.link = URL(string: "abbr://\(key)")
@@ -304,7 +393,7 @@ struct PatternViewerScreen: View {
             .buttonStyle(PressScaleStyle())
 
             Button {
-                current = min(SampleData.patternTotalRows, current + 1)
+                current = min(totalRows, current + 1)
             } label: {
                 Text(sectionComplete ? "Section complete" : "Mark row \(rowInRepeat) done")
                     .font(.system(size: 15, weight: .semibold))

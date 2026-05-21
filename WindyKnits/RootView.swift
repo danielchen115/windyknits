@@ -8,6 +8,7 @@ enum Route: Hashable {
     case counter(String)
     case importPDF
     case manualPattern
+    case editProject(String)
     case settings
 }
 
@@ -89,6 +90,7 @@ extension View {
             case .counter(let id):  CounterScreen(projectId: id)
             case .importPDF:        ImportScreen()
             case .manualPattern:    ManualPatternScreen()
+            case .editProject(let id): ProjectEditScreen(projectId: id)
             case .settings:         SettingsScreen()
             }
         }

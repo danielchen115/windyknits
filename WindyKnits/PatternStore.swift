@@ -19,6 +19,18 @@ final class PatternStore {
         save()
     }
 
+    /// Replaces an existing imported project in place, preserving its position
+    /// in the list (unlike `add` which moves it to the top). Used by the
+    /// project-edit screen and inline notes editing.
+    func update(_ project: Project) {
+        if let idx = imported.firstIndex(where: { $0.id == project.id }) {
+            imported[idx] = project
+        } else {
+            imported.insert(project, at: 0)
+        }
+        save()
+    }
+
     func project(id: String) -> Project? {
         if let p = imported.first(where: { $0.id == id }) { return p }
         return SampleData.projects.first(where: { $0.id == id })

@@ -40,6 +40,19 @@ struct ProjectDetailScreen: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
+    // A direct binding to the project's `notes` field — keystroke-driven so
+    // there's no manual lifecycle (FocusState + onAppear) to coordinate.
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { project.notes ?? "" },
+            set: { newValue in
+                var updated = project
+                updated.notes = newValue.isEmpty ? nil : newValue
+                store.update(updated)
+            }
+        )
+    }
+
     // MARK: hero
 
     private var hero: some View {
@@ -56,7 +69,20 @@ struct ProjectDetailScreen: View {
             HStack {
                 CircleIconButton(system: "chevron.left") { dismiss() }
                 Spacer()
-                CircleIconButton(system: "ellipsis") {}
+                NavigationLink(value: Route.editProject(projectId)) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Edit")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(Palette.walnut)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Palette.paper.opacity(0.85)))
+                    .overlay(Capsule().strokeBorder(Palette.line, lineWidth: 0.5))
+                }
+                .buttonStyle(PressScaleStyle())
             }
             .padding(.horizontal, 16)
             .padding(.top, 56)
@@ -69,8 +95,10 @@ struct ProjectDetailScreen: View {
             Text(project.title)
                 .font(AppFont.serif(34))
                 .foregroundStyle(Palette.walnut)
-            Text("by \(project.designer)").meta(size: 14)
-                .padding(.top, 2)
+            if !project.designer.isEmpty {
+                Text("by \(project.designer)").meta(size: 14)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
@@ -163,69 +191,114 @@ struct ProjectDetailScreen: View {
 
     private var overviewContent: some View {
         VStack(spacing: 0) {
-            KV("Pattern type", "Top-down raglan")
-            KV("Size", "S (34\" bust)")
-            KV("Gauge", "22 sts × 30 rows / 10cm")
-            KV("Started", "Apr 2, 2026")
-            KV("Estimated finish", "Jun 14")
+            KV("Pattern type", project.patternType)
+            KV("Size", project.size)
+            KV("Gauge", project.gauge)
+            KV("Started", startedLabel)
         }
     }
 
+    private var startedLabel: String? {
+        guard let created = project.createdAt else { return nil }
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f.string(from: created)
+    }
+
+    @ViewBuilder
     private var materialsContent: some View {
-        VStack(spacing: 16) {
-            SoftCard(padding: 16) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Yarn").eyebrow()
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(project.swatch)
-                            .frame(width: 44, height: 44)
-                            .overlay(Circle().strokeBorder(.black.opacity(0.06)))
-                            .overlay(
-                                Circle().fill(
-                                    LinearGradient(
-                                        colors: [.clear, .black.opacity(0.10)],
-                                        startPoint: .top, endPoint: .bottom)
-                                )
-                            )
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(project.yarn)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Palette.walnut)
-                            Text("\(project.color) · 4 skeins used").meta()
+        if !project.yarn.isEmpty || !project.color.isEmpty || !project.needles.isEmpty {
+            VStack(spacing: 16) {
+                if !project.yarn.isEmpty || !project.color.isEmpty {
+                    SoftCard(padding: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Yarn").eyebrow()
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(project.swatch)
+                                    .frame(width: 44, height: 44)
+                                    .overlay(Circle().strokeBorder(.black.opacity(0.06)))
+                                    .overlay(
+                                        Circle().fill(
+                                            LinearGradient(
+                                                colors: [.clear, .black.opacity(0.10)],
+                                                startPoint: .top, endPoint: .bottom)
+                                        )
+                                    )
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(project.yarn.isEmpty ? "Yarn" : project.yarn)
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(Palette.walnut)
+                                    if !project.color.isEmpty {
+                                        Text(project.color).meta()
+                                    }
+                                }
+                                Spacer()
+                            }
                         }
-                        Spacer()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
 
-            SoftCard(padding: 16) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Needles").eyebrow()
-                    HStack(spacing: 10) {
-                        NeedleIcon(size: 22, color: Palette.walnut)
-                        Text(project.needles)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Palette.walnut)
-                        Text("circular, 80cm").meta()
-                        Spacer()
+                if !project.needles.isEmpty {
+                    SoftCard(padding: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Needles").eyebrow()
+                            HStack(spacing: 10) {
+                                NeedleIcon(size: 22, color: Palette.walnut)
+                                Text(project.needles)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Palette.walnut)
+                                Spacer()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+        } else {
+            emptyDetailHint("No materials yet",
+                            "Add yarn, color, or needles to keep them with this project.")
         }
     }
 
+    @ViewBuilder
     private var notesContent: some View {
         SoftCard(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Your notes").eyebrow()
-                Text(project.notes
-                     ?? "Tap to add a note about this project — modifications, errata, anything to remember next time.")
-                    .font(.system(size: 14))
+                ZStack(alignment: .topLeading) {
+                    if (project.notes ?? "").isEmpty {
+                        Text("Tap to add a note about this project — modifications, errata, anything to remember next time.")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Palette.walnutMute)
+                            .lineSpacing(4)
+                            .padding(.top, 8)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: notesBinding)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Palette.walnut)
+                        .scrollContentBackground(.hidden)
+                        .lineSpacing(4)
+                        .frame(minHeight: 110)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func emptyDetailHint(_ title: String, _ body: String) -> some View {
+        SoftCard(padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Palette.walnut)
-                    .lineSpacing(4)
+                Text(body)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.walnutMute)
+                    .lineSpacing(3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -233,15 +306,22 @@ struct ProjectDetailScreen: View {
 }
 
 private struct KV: View {
-    let k: String, v: String
-    init(_ k: String, _ v: String) { self.k = k; self.v = v }
+    let k: String, v: String?
+    init(_ k: String, _ v: String?) { self.k = k; self.v = v }
+    private var displayValue: String {
+        let trimmed = (v ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "—" : trimmed
+    }
+    private var isSet: Bool {
+        !(v ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(k).meta()
             Spacer()
-            Text(v)
+            Text(displayValue)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Palette.walnut)
+                .foregroundStyle(isSet ? Palette.walnut : Palette.walnutMute)
         }
         .padding(.bottom, 14)
         .overlay(alignment: .bottom) {

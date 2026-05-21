@@ -60,15 +60,19 @@ struct CounterScreen: View {
     // SampleData chart. Imported and manual projects bring their own pattern.
     private var usesSampleChart: Bool { project.pattern == nil }
 
-    // Pulls the stitch target from the pattern data for the current row, so
-    // linked auto-advance fires at the right count for variable-stitch rows
-    // (e.g. increase/decrease rows). Falls back to 24 outside the pattern range.
+    // Pulls the stitch target for the row the user is currently working on —
+    // that's `rows + 1` since `rows` counts completed rows. Returns 0 to mean
+    // "no goal set" (the project just doesn't have a stitch count on this row).
+    // For the bundled sample chart we keep a non-zero fallback so the demo
+    // screens still feel populated.
     private var stitchGoal: Int {
+        let target = rows + 1
         if let p = project.pattern {
-            return p.rows.first(where: { $0.n == rows })?.sts ?? 24
+            return p.rows.first(where: { $0.n == target })?.sts ?? 0
         }
-        return SampleData.pattern.first(where: { $0.n == rows })?.sts ?? 24
+        return SampleData.pattern.first(where: { $0.n == target })?.sts ?? 24
     }
+    private var hasStitchGoal: Bool { stitchGoal > 0 }
     private var rowsGoal: Int {
         usesSampleChart ? SampleData.patternTotalRows : max(1, project.rowsTotal)
     }
@@ -279,14 +283,16 @@ struct CounterScreen: View {
     }
     private var primaryHint: String {
         switch active {
-        case .stitches: return linked ? "of \(stitchGoal) → auto-bumps row" : "of \(stitchGoal)"
+        case .stitches:
+            guard hasStitchGoal else { return "count freely · no goal on this row" }
+            return linked ? "of \(stitchGoal) → auto-bumps row" : "of \(stitchGoal)"
         case .rows:     return usesSampleChart ? "of \(rowsGoal) — yoke" : "of \(rowsGoal) rows"
         case .repeats:  return "of \(repeatGoal) chart repeats — row \(rowInRepeat) of \(rowsPerRepeat)"
         }
     }
     private var primaryProgress: Double {
         switch active {
-        case .stitches: return Double(stitches) / Double(stitchGoal)
+        case .stitches: return hasStitchGoal ? Double(stitches) / Double(stitchGoal) : 0
         case .rows:     return Double(rows) / Double(rowsGoal)
         case .repeats:  return Double(repeats) / Double(repeatGoal)
         }
@@ -380,7 +386,7 @@ struct CounterScreen: View {
         switch active {
         case .stitches:
             let next = stitches + 1
-            if linked, next >= stitchGoal {
+            if linked, hasStitchGoal, next >= stitchGoal {
                 rows += 1
                 stitches = 0
             } else {
@@ -439,7 +445,7 @@ struct CounterScreen: View {
                             .font(AppFont.serif(36))
                             .foregroundStyle(Palette.walnut)
                             .monospacedDigit()
-                        Text("of \(c.goal)").meta(size: 11)
+                        Text(c.goal > 0 ? "of \(c.goal)" : "no goal").meta(size: 11)
                     }
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity)
@@ -499,7 +505,9 @@ struct CounterScreen: View {
                     Text("Link stitches to rows")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Palette.walnut)
-                    Text("When you hit \(stitchGoal), the row counter advances.")
+                    Text(hasStitchGoal
+                         ? "When you hit \(stitchGoal), the row counter advances."
+                         : "Add a stitch count to this row to auto-advance.")
                         .meta(size: 12)
                 }
                 Spacer(minLength: 0)
