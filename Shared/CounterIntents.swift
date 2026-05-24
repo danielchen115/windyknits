@@ -10,6 +10,12 @@ import Foundation
 /// foregrounded, and `Activity.activities` in that extension doesn't see
 /// activities owned by the app — `activity.update(...)` would silently no-op
 /// and the Lock Screen number would never refresh.
+///
+/// Haptics intentionally aren't fired from these intents: iOS suppresses
+/// CHHapticEngine + UIKit feedback generators in background-launched intent
+/// processes, and the only working alternative (`kSystemSoundID_Vibrate`) is
+/// too coarse for a per-row tick. The fine Taptic feedback lives in
+/// CounterScreen, where the user is in the foreground.
 
 enum CounterMutation {
     /// Writes `newRows` to the shared counter store, looks up the new
@@ -57,6 +63,10 @@ struct IncrementRowIntent: LiveActivityIntent {
     static var description = IntentDescription(
         "Marks one more row done on your active WindyKnits project.")
     static var openAppWhenRun: Bool = false
+    /// Explicit so iOS knows this intent doesn't need device authentication
+    /// to run. Without this, certain iOS configurations show a Face ID /
+    /// passcode prompt before dispatching the intent from the Lock Screen.
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Project ID")
     var projectId: String?
@@ -68,8 +78,20 @@ struct IncrementRowIntent: LiveActivityIntent {
         let id = projectId ?? "p1"
         let current = SharedStore.defaults.integer(forKey: SharedStore.Keys.rows(id))
         let next = current + 1
-        CounterMutation.appendHistory(rowNumber: next, projectId: id)
+
+        // Push the Live Activity update first — that's the only user-visible
+        // work on this path. The history JSON write below is a Today-screen
+        // stats side effect and shouldn't sit between the tap and the number
+        // change on the Lock Screen.
         await CounterMutation.apply(newRows: next, projectId: id)
+
+        // Defer history to a background task so it doesn't block .result().
+        // iOS may still hold the app process briefly after we return, which
+        // is enough for the JSON re-encode to complete.
+        Task.detached(priority: .background) {
+            CounterMutation.appendHistory(rowNumber: next, projectId: id)
+        }
+
         return .result()
     }
 }
@@ -79,6 +101,7 @@ struct DecrementRowIntent: LiveActivityIntent {
     static var description = IntentDescription(
         "Decreases the row counter by one. Clamped at zero.")
     static var openAppWhenRun: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Project ID")
     var projectId: String?
@@ -100,6 +123,7 @@ struct ResetRowsIntent: LiveActivityIntent {
     static var description = IntentDescription(
         "Resets the row counter to zero and clears completion history.")
     static var openAppWhenRun: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Project ID")
     var projectId: String?

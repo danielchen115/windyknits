@@ -20,6 +20,7 @@ struct CounterLiveActivity: Widget {
                         Text("\(context.state.rows)")
                             .font(.title2.bold())
                             .monospacedDigit()
+                            .contentTransition(.numericText())
                     }
                     .padding(.leading, 4)
                 }
@@ -62,9 +63,11 @@ struct CounterLiveActivity: Widget {
             } compactTrailing: {
                 Text("\(context.state.rows)")
                     .monospacedDigit()
+                    .contentTransition(.numericText())
             } minimal: {
                 Text("\(context.state.rows)")
                     .monospacedDigit()
+                    .contentTransition(.numericText())
             }
         }
     }
@@ -81,6 +84,7 @@ struct CounterLiveActivity: Widget {
                         .font(.system(size: 26, weight: .bold, design: .serif))
                         .foregroundStyle(.white)
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                 }
                 Spacer(minLength: 8)
             }
