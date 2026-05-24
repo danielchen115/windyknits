@@ -116,7 +116,8 @@ struct ImportScreen: View {
         advance(to: .review)
     }
 
-    private func handleSave(_ name: String, _ designer: String) {
+    private func handleSave(_ name: String, _ designer: String,
+                            _ destination: ProjectStatus) {
         guard let result = parseResult else { return }
         let project = Project(
             id: UUID().uuidString,
@@ -128,9 +129,10 @@ struct ImportScreen: View {
             needles: "",
             rowsDone: 0,
             rowsTotal: result.pattern.rows.count,
-            lastWorked: "Just imported",
+            lastWorked: destination == .queue ? "Queued just now" : "Just imported",
             notes: nil,
-            pattern: result.pattern
+            pattern: result.pattern,
+            status: destination
         )
         store.add(project)
         dismiss()
@@ -498,13 +500,14 @@ private struct ImportParsing: View {
 
 private struct ImportReview: View {
     let initial: PatternImporter.ParseResult
-    var onSave: (_ name: String, _ designer: String) -> Void
+    var onSave: (_ name: String, _ designer: String, _ destination: ProjectStatus) -> Void
 
     @State private var name: String
     @State private var designer: String
+    @State private var destination: ProjectStatus = .active
 
     init(initial: PatternImporter.ParseResult,
-         onSave: @escaping (_ name: String, _ designer: String) -> Void) {
+         onSave: @escaping (_ name: String, _ designer: String, _ destination: ProjectStatus) -> Void) {
         self.initial = initial
         self.onSave = onSave
         _name = State(initialValue: initial.name)
@@ -560,12 +563,23 @@ private struct ImportReview: View {
             abbreviationsBlock
             rowsBlock
 
-            PrimaryButton(title: "Save to projects") {
-                onSave(name, designer)
+            DestinationChooser(value: $destination)
+                .padding(.top, 4)
+
+            PrimaryButton(title: saveButtonLabel) {
+                onSave(name, designer, destination)
             }
             .padding(.top, 8)
         }
         .padding(.horizontal, 24)
+    }
+
+    private var saveButtonLabel: String {
+        switch destination {
+        case .active:   "Save & cast on"
+        case .queue:    "Save to queue"
+        case .finished: "Save"
+        }
     }
 
     private var reviewSubtitle: String {

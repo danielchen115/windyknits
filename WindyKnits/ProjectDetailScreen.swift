@@ -3,6 +3,8 @@ import SwiftUI
 struct ProjectDetailScreen: View {
     let projectId: String
     @State private var tab: DetailTab = .overview
+    @State private var statusSheetOpen = false
+    @State private var deleteSheetOpen = false
     @Environment(\.dismiss) private var dismiss
     @Environment(PatternStore.self) private var store
 
@@ -38,6 +40,37 @@ struct ProjectDetailScreen: View {
             .ignoresSafeArea(edges: .top)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $statusSheetOpen) {
+            StatusSheet(
+                projectTitle: project.title,
+                status: project.status,
+                onMove: { next in
+                    statusSheetOpen = false
+                    guard next != project.status else { return }
+                    store.setStatus(project.id, to: next)
+                },
+                onDelete: {
+                    statusSheetOpen = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        deleteSheetOpen = true
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $deleteSheetOpen) {
+            DeleteConfirmSheet(
+                projectTitle: project.title,
+                onCancel: { deleteSheetOpen = false },
+                onConfirm: {
+                    store.delete(project.id)
+                    deleteSheetOpen = false
+                    // Pop back to the library — there's no project here anymore.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        dismiss()
+                    }
+                }
+            )
+        }
     }
 
     // A direct binding to the project's `notes` field — keystroke-driven so
@@ -83,6 +116,8 @@ struct ProjectDetailScreen: View {
                     .overlay(Capsule().strokeBorder(Palette.line, lineWidth: 0.5))
                 }
                 .buttonStyle(PressScaleStyle())
+                CircleIconButton(system: "ellipsis") { statusSheetOpen = true }
+                    .padding(.leading, 6)
             }
             .padding(.horizontal, 16)
             .padding(.top, 56)
@@ -91,10 +126,13 @@ struct ProjectDetailScreen: View {
 
     private var title: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("In progress").eyebrow(color: Palette.primaryDark)
+            StatusBadge(status: project.status, clickable: true) {
+                statusSheetOpen = true
+            }
             Text(project.title)
                 .font(AppFont.serif(34))
                 .foregroundStyle(Palette.walnut)
+                .padding(.top, 4)
             if !project.designer.isEmpty {
                 Text("by \(project.designer)").meta(size: 14)
                     .padding(.top, 2)
@@ -105,9 +143,22 @@ struct ProjectDetailScreen: View {
         .padding(.top, -8)
     }
 
-    // MARK: progress
+    // MARK: progress (status-specific)
 
+    @ViewBuilder
     private var progressCard: some View {
+        Group {
+            switch project.status {
+            case .active:   activeCard
+            case .queue:    queueCard
+            case .finished: finishedCard
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 20)
+    }
+
+    private var activeCard: some View {
         SoftCard {
             VStack(spacing: 0) {
                 HStack(alignment: .top) {
@@ -161,8 +212,115 @@ struct ProjectDetailScreen: View {
                 .padding(.top, 16)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
+    }
+
+    private var queueCard: some View {
+        SoftCard {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("In your queue").eyebrow()
+                Text(queueBlurb)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Palette.walnutSoft)
+                    .lineSpacing(3)
+                    .padding(.top, 8)
+
+                HStack(spacing: 10) {
+                    Button {
+                        store.setStatus(project.id, to: .active)
+                    } label: {
+                        HStack(spacing: 8) {
+                            NeedleIcon(size: 15, color: .white)
+                            Text("Cast on")
+                        }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Palette.primary)
+                        )
+                    }
+                    .buttonStyle(PressScaleStyle())
+
+                    NavigationLink(value: Route.pattern(project.id)) {
+                        Text("Preview pattern")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Palette.creamSoft)
+                            )
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+                .padding(.top, 16)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var queueBlurb: String {
+        let weeks = project.estWeeks ?? 4
+        return "You haven't cast on yet. Estimated \(weeks) weeks of evenings once you start."
+    }
+
+    private var finishedCard: some View {
+        SoftCard {
+            VStack(spacing: 0) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Finished").eyebrow(color: Palette.accent)
+                        Text(project.finishedOn ?? "—")
+                            .font(AppFont.serif(24))
+                            .foregroundStyle(Palette.walnut)
+                            .padding(.top, 4)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Took").eyebrow()
+                        Text("\(project.daysToFinish ?? 0) days")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                    }
+                }
+                ProgressBar(value: 1, color: Palette.accent)
+                    .padding(.top, 14)
+
+                HStack(spacing: 10) {
+                    Button {
+                        store.setStatus(project.id, to: .queue)
+                    } label: {
+                        Text("Knit again")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Palette.creamSoft)
+                            )
+                    }
+                    .buttonStyle(PressScaleStyle())
+
+                    NavigationLink(value: Route.pattern(project.id)) {
+                        Text("Open pattern")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Palette.creamSoft)
+                            )
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+                .padding(.top, 16)
+            }
+        }
     }
 
     private var segmentedTabs: some View {

@@ -1,5 +1,39 @@
 import SwiftUI
 
+/// Where a project sits in the workflow. `active` is on the needles right
+/// now; `queue` is saved for later (no rows knit yet); `finished` is cast
+/// off. Finished is a terminal state — never offered at creation time, only
+/// reached from `active`.
+enum ProjectStatus: String, Codable, CaseIterable, Hashable, Sendable {
+    case active, queue, finished
+
+    var label: String {
+        switch self {
+        case .active:   return "In progress"
+        case .queue:    return "Queue"
+        case .finished: return "Finished"
+        }
+    }
+
+    var sub: String {
+        switch self {
+        case .active:   return "Currently on the needles."
+        case .queue:    return "Saved for later. Not started yet."
+        case .finished: return "Cast off — knit again or admire."
+        }
+    }
+
+    /// The dot/accent color that represents this status across badges, swipe
+    /// actions, library cards, and the status sheet.
+    var color: Color {
+        switch self {
+        case .active:   return Palette.primaryDark
+        case .queue:    return Palette.walnutSoft
+        case .finished: return Palette.accent
+        }
+    }
+}
+
 struct Project: Identifiable, Hashable, Codable, Sendable {
     let id: String
     var title: String
@@ -23,6 +57,18 @@ struct Project: Identifiable, Hashable, Codable, Sendable {
     var size: String? = nil
     var gauge: String? = nil
     var createdAt: Date? = nil
+
+    var status: ProjectStatus = .active
+    /// Queue-only — rough estimate shown on queue cards and detail.
+    var estWeeks: Int? = nil
+    /// Queue-only — whether the planned yarn has been bought.
+    var yarnReady: Bool? = nil
+    /// Queue-only — display string for when the project was queued.
+    var addedOn: String? = nil
+    /// Finished-only — formatted date this project was cast off.
+    var finishedOn: String? = nil
+    /// Finished-only — number of days from start to finish.
+    var daysToFinish: Int? = nil
 
     var swatch: Color { Color(hex: swatchHex) }
     var progress: Double { rowsTotal > 0 ? Double(rowsDone) / Double(rowsTotal) : 0 }
@@ -125,6 +171,70 @@ enum SampleData {
             patternType: "Garter square",
             size: "30 × 30 cm",
             gauge: nil
+        ),
+        // ── Queue ──
+        Project(
+            id: "q1",
+            title: "Bjørn Sweater",
+            designer: "PetiteKnit",
+            swatchHex: 0xb6a4c4,
+            yarn: "Sandnes Peer Gynt",
+            color: "Stormy Lilac",
+            needles: "4 mm",
+            rowsDone: 0,
+            rowsTotal: 220,
+            lastWorked: "—",
+            status: .queue,
+            estWeeks: 6,
+            yarnReady: true,
+            addedOn: "May 12"
+        ),
+        Project(
+            id: "q2",
+            title: "Lavender Mittens",
+            designer: "Erika Knight",
+            swatchHex: 0xa795c4,
+            yarn: "Rowan Felted Tweed",
+            color: "Heath",
+            needles: "3.25 mm",
+            rowsDone: 0,
+            rowsTotal: 96,
+            lastWorked: "—",
+            status: .queue,
+            estWeeks: 2,
+            yarnReady: false,
+            addedOn: "Apr 28"
+        ),
+        // ── Finished ──
+        Project(
+            id: "f1",
+            title: "Birch Beanie",
+            designer: "Espace Tricot",
+            swatchHex: 0xd7c9a8,
+            yarn: "Brooklyn Tweed Shelter",
+            color: "Birch",
+            needles: "4.5 mm",
+            rowsDone: 88,
+            rowsTotal: 88,
+            lastWorked: "Mar 14",
+            status: .finished,
+            finishedOn: "Mar 14, 2026",
+            daysToFinish: 9
+        ),
+        Project(
+            id: "f2",
+            title: "Storm Cowl",
+            designer: "Own design",
+            swatchHex: 0x9aa9c7,
+            yarn: "BC Garn Loch Lomond",
+            color: "Slate",
+            needles: "5 mm",
+            rowsDone: 72,
+            rowsTotal: 72,
+            lastWorked: "Jan 06",
+            status: .finished,
+            finishedOn: "Jan 06, 2026",
+            daysToFinish: 14
         )
     ]
 
