@@ -19,9 +19,25 @@ struct ProjectDetailScreen: View {
         }
     }
 
+    /// Resolved project, or a transparent stand-in shown for one frame while
+    /// `dismiss()` runs (the `.onAppear` below pops the screen when the id no
+    /// longer maps to a stored project — e.g. after a destructive action).
     private var project: Project {
-        store.project(id: projectId) ?? SampleData.project(id: projectId)
+        store.project(id: projectId) ?? Self.missingProject
     }
+
+    private static let missingProject = Project(
+        id: "",
+        title: "",
+        designer: "",
+        swatchHex: 0xd49aa3,
+        yarn: "",
+        color: "",
+        needles: "",
+        rowsDone: 0,
+        rowsTotal: 0,
+        lastWorked: "—"
+    )
 
     var body: some View {
         ZStack {
@@ -40,6 +56,9 @@ struct ProjectDetailScreen: View {
             .ignoresSafeArea(edges: .top)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            if store.project(id: projectId) == nil { dismiss() }
+        }
         .sheet(isPresented: $statusSheetOpen) {
             StatusSheet(
                 projectTitle: project.title,

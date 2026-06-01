@@ -123,7 +123,7 @@ struct ImportScreen: View {
             id: UUID().uuidString,
             title: name.trimmedOrFallback(result.name),
             designer: designer.trimmedOrFallback(result.designer),
-            swatchHex: SampleData.importedSwatchHex,
+            swatchHex: Palette.defaultImportedSwatchHex,
             yarn: "",
             color: "",
             needles: "",

@@ -61,7 +61,7 @@ struct RootView: View {
             .tag(AppTab.projects)
 
             NavigationStack(path: $counter.path) {
-                CounterScreen(projectId: "p1", showsBackButton: false)
+                CounterTabRoot(switchTab: { tab = $0 })
                     .navigationDestinationForRoutes()
             }
             .environment(counterNav)
@@ -94,6 +94,72 @@ extension View {
             case .settings:         SettingsScreen()
             }
         }
+    }
+}
+
+/// Counter tab landing view. Resumes on whichever project was last open in a
+/// counter; falls back to an empty-state CTA when no valid project remains.
+struct CounterTabRoot: View {
+    var switchTab: (AppTab) -> Void
+    @Environment(PatternStore.self) private var store
+    @AppStorage(SharedStore.Keys.lastActiveProjectId, store: SharedStore.defaults)
+    private var lastProjectId: String = ""
+
+    var body: some View {
+        if !lastProjectId.isEmpty, store.project(id: lastProjectId) != nil {
+            CounterScreen(projectId: lastProjectId, showsBackButton: false)
+        } else if let firstActive = store.projects(in: .active).first {
+            // No remembered project but the user has at least one — land on
+            // the newest active so the tab is immediately useful.
+            CounterScreen(projectId: firstActive.id, showsBackButton: false)
+        } else {
+            CounterTabEmptyState(switchTab: switchTab)
+        }
+    }
+}
+
+private struct CounterTabEmptyState: View {
+    var switchTab: (AppTab) -> Void
+
+    var body: some View {
+        ZStack {
+            Palette.cream.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Spacer(minLength: 60)
+                Image(systemName: "number.square")
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundStyle(Palette.primaryDark)
+                    .frame(width: 80, height: 80)
+                    .background(RoundedRectangle(cornerRadius: 22).fill(Palette.creamWarm))
+                VStack(spacing: 6) {
+                    Text("No counter yet.")
+                        .font(AppFont.serif(22))
+                        .foregroundStyle(Palette.walnut)
+                    Text("Pick a project from your library to start counting rows here.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.walnutMute)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .frame(maxWidth: 280)
+                }
+                Button { switchTab(.projects) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "books.vertical")
+                        Text("Go to Library")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Palette.primary))
+                }
+                .buttonStyle(PressScaleStyle())
+                .padding(.top, 4)
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 

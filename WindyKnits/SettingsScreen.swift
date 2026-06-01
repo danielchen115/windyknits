@@ -7,6 +7,10 @@ struct SettingsScreen: View {
     @State private var keyField: String = ""
     @State private var didLoadKey = false
     @State private var keyHidden: Bool = true
+    #if DEBUG
+    @State private var showWipeConfirm = false
+    @State private var devToast: String?
+    #endif
 
     var body: some View {
         ZStack {
@@ -20,12 +24,43 @@ struct SettingsScreen: View {
                         keySection
                         cloudSection
                         resetSection
+                        #if DEBUG
+                        devSection
+                        #endif
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)
                 }
             }
+
+            #if DEBUG
+            if let devToast {
+                VStack {
+                    Spacer()
+                    Text(devToast)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Capsule().fill(Palette.walnut.opacity(0.92)))
+                        .padding(.bottom, 24)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            #endif
         }
+        #if DEBUG
+        .alert("Wipe all data?",
+               isPresented: $showWipeConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Wipe", role: .destructive) {
+                DevTools.wipeAllData()
+                flashToast("All project + counter data cleared.")
+            }
+        } message: {
+            Text("Removes every project and resets every counter. Your API key in Keychain is preserved.")
+        }
+        #endif
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             // Prime the field from Keychain exactly once so the user can edit
@@ -165,6 +200,62 @@ struct SettingsScreen: View {
             Text("You'll be asked again on the next import.").meta(size: 11)
         }
     }
+
+    #if DEBUG
+    /// Surfaces seed/wipe shortcuts on Debug builds only. Stripped from
+    /// Release entirely via `#if DEBUG`.
+    private var devSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Developer").eyebrow()
+            SoftCard(padding: 14) {
+                VStack(spacing: 10) {
+                    Button {
+                        DevTools.seedSampleProjects()
+                        flashToast("Loaded \(SampleData.projects.count) sample projects.")
+                    } label: {
+                        devRow(icon: "tray.and.arrow.down",
+                               label: "Load sample projects")
+                    }
+                    .buttonStyle(PressScaleStyle())
+
+                    Button { showWipeConfirm = true } label: {
+                        devRow(icon: "trash",
+                               label: "Wipe all data",
+                               tint: .red)
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+            }
+            Text("Debug builds only — not shipped to the App Store.")
+                .meta(size: 11)
+        }
+    }
+
+    private func devRow(icon: String, label: String, tint: Color = Palette.walnut) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 22)
+            Text(label)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.walnutMute)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func flashToast(_ message: String) {
+        withAnimation(.easeOut(duration: 0.2)) { devToast = message }
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            withAnimation(.easeIn(duration: 0.25)) { devToast = nil }
+        }
+    }
+    #endif
 }
 
 #Preview {

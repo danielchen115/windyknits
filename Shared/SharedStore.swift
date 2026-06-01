@@ -23,6 +23,10 @@ enum SharedStore {
         /// reads this to surface the current row's instruction text without
         /// needing access to PatternStore.
         static func rowTexts(_ projectId: String) -> String { "counter.\(projectId).rowTexts" }
+        /// Last project id opened in any counter — drives the Counter tab so
+        /// it lands on the most recent counter instead of an empty state when
+        /// the user has at least one project on the go.
+        static let lastActiveProjectId = "counter.lastActiveProjectId"
     }
 
     /// Writes the per-row instruction text dictionary for `projectId` so the

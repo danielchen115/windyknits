@@ -14,51 +14,42 @@ struct PatternViewerScreen: View {
 
     init(projectId: String) {
         self.projectId = projectId
-        // Sample projects show curated mid-flow state; everything else starts at 0.
-        let isSample = SampleData.projects.contains(where: { $0.id == projectId })
-        _current = AppStorage(wrappedValue: isSample ? 5 : 0,
+        _current = AppStorage(wrappedValue: 0,
                               SharedStore.Keys.rows(projectId),
                               store: SharedStore.defaults)
     }
 
-    private var project: Project {
-        store.project(id: projectId) ?? SampleData.project(id: projectId)
-    }
+    private var project: Project? { store.project(id: projectId) }
 
-    // True for the bundled demo projects (p1/p2/p3) — they ride on the static
-    // SampleData chart with vertical repeats. Imported and manual patterns bring
-    // their own flat row list with no repeat cadence.
-    private var usesSampleChart: Bool { project.pattern == nil }
+    /// Repeat length in rows. Charts that declare a repeat (e.g. yokes) use
+    /// it; everything else treats the whole pattern as one repeat.
+    private var rowsPerRepeat: Int {
+        max(1, project?.pattern?.rowsPerRepeat ?? totalRows)
+    }
+    private var usesRepeats: Bool {
+        (project?.pattern?.rowsPerRepeat ?? 0) > 0
+    }
 
     private var rows: [PatternRow] {
-        if let p = project.pattern {
-            return p.rows.map { PatternRow(n: $0.n, rs: $0.rs, text: $0.text, sts: $0.sts ?? 0) }
-        }
-        return SampleData.pattern
+        guard let p = project?.pattern else { return [] }
+        return p.rows.map { PatternRow(n: $0.n, rs: $0.rs, text: $0.text, sts: $0.sts ?? 0) }
     }
-    private var totalRows: Int {
-        usesSampleChart ? SampleData.patternTotalRows : rows.count
-    }
-    private var rowsPerRepeat: Int {
-        usesSampleChart ? SampleData.rowsPerRepeat : max(1, totalRows)
-    }
+    private var totalRows: Int { rows.count }
 
-    // For sample data the UI shows the chart cycle (rowInRepeat / repeatNumber);
-    // for project patterns the chart cycle collapses to "absolute row, 1 of 1".
     private var rowInRepeat: Int {
         let c = max(current, 1)
-        if usesSampleChart {
-            return ((c - 1) % SampleData.rowsPerRepeat) + 1
+        if usesRepeats {
+            return ((c - 1) % rowsPerRepeat) + 1
         }
         return min(c, max(1, totalRows))
     }
     private var repeatNumber: Int {
-        guard usesSampleChart else { return 1 }
+        guard usesRepeats else { return 1 }
         let c = max(current, 1)
-        return ((c - 1) / SampleData.rowsPerRepeat) + 1
+        return ((c - 1) / rowsPerRepeat) + 1
     }
     private var totalRepeats: Int {
-        usesSampleChart ? max(1, SampleData.patternTotalRows / SampleData.rowsPerRepeat) : 1
+        usesRepeats ? max(1, totalRows / rowsPerRepeat) : 1
     }
     private var sectionComplete: Bool {
         totalRows > 0 && current >= totalRows
@@ -66,18 +57,19 @@ struct PatternViewerScreen: View {
     private var currentRow: PatternRow? { rows.first { $0.n == rowInRepeat } }
 
     private var sectionTitle: String {
-        if usesSampleChart { return SampleData.patternSection }
-        return project.pattern?.sections.first?.name ?? project.title
+        project?.pattern?.sections.first?.name ?? project?.title ?? "Pattern"
     }
 
-    // Set of known abbreviation tokens (lowercased). For imported/manual patterns
-    // we only have the list of abbreviations, not definitions — the sheet falls
-    // back to a "tap to add" prompt for unknown definitions.
+    /// Lowercased set of every recognised abbreviation token. Combines the
+    /// app's canonical glossary with whatever the project's pattern reports —
+    /// imported patterns sometimes carry tokens we don't have definitions
+    /// for, but they should still light up as tappable.
     private var abbrTokens: Set<String> {
-        if let p = project.pattern {
-            return Set(p.abbreviations.map { $0.lowercased() })
+        var tokens = Set(KnittingAbbreviations.dictionary.keys.map { $0.lowercased() })
+        if let p = project?.pattern {
+            tokens.formUnion(p.abbreviations.map { $0.lowercased() })
         }
-        return Set(SampleData.abbreviations.keys.map { $0.lowercased() })
+        return tokens
     }
 
     struct TappedAbbr: Identifiable {
@@ -98,12 +90,18 @@ struct PatternViewerScreen: View {
 
             VStack(spacing: 0) {
                 navBar
-                rowIndicator
-                if voice, currentRow != nil {
-                    voiceBanner
+                if project == nil {
+                    missingProjectState
+                } else if rows.isEmpty {
+                    noPatternState
+                } else {
+                    rowIndicator
+                    if voice, currentRow != nil {
+                        voiceBanner
+                    }
+                    rowList
+                    footerControls
                 }
-                rowList
-                footerControls
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -114,7 +112,7 @@ struct PatternViewerScreen: View {
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "abbr" else { return .systemAction }
             let key = url.host ?? url.path.trimmingCharacters(in: .init(charactersIn: "/"))
-            tappedAbbr = .init(abbr: key, definition: SampleData.abbreviations[key.lowercased()])
+            tappedAbbr = .init(abbr: key, definition: KnittingAbbreviations.dictionary[key.lowercased()])
             return .handled
         })
         .sheet(item: $tappedAbbr) { item in
@@ -123,6 +121,75 @@ struct PatternViewerScreen: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Palette.cream)
         }
+    }
+
+    private var missingProjectState: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 40)
+            Image(systemName: "questionmark.folder")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(Palette.walnutMute)
+                .frame(width: 72, height: 72)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Palette.creamWarm))
+            Text("Project not found.")
+                .font(AppFont.serif(20))
+                .foregroundStyle(Palette.walnut)
+            Text("This pattern was removed. Head back to your library to pick another.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.walnutMute)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+                .frame(maxWidth: 280)
+            Button { dismiss() } label: {
+                Text("Back to library")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.walnut)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Palette.creamSoft))
+            }
+            .buttonStyle(PressScaleStyle())
+            .padding(.top, 4)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
+    }
+
+    private var noPatternState: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 40)
+            Image(systemName: "doc.text")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(Palette.primaryDark)
+                .frame(width: 72, height: 72)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Palette.creamWarm))
+            Text("No chart attached yet.")
+                .font(AppFont.serif(20))
+                .foregroundStyle(Palette.walnut)
+            Text("Add row instructions in the editor and they'll show up here, ready to follow.")
+                .font(.system(size: 13))
+                .foregroundStyle(Palette.walnutMute)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+                .frame(maxWidth: 280)
+            NavigationLink(value: Route.editProject(projectId)) {
+                HStack(spacing: 6) {
+                    Image(systemName: "pencil.line")
+                    Text("Open editor")
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Capsule().fill(Palette.primary))
+            }
+            .buttonStyle(PressScaleStyle())
+            .padding(.top, 4)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
     // MARK: nav
@@ -201,7 +268,7 @@ struct PatternViewerScreen: View {
     }
 
     private var progressSubtitle: String {
-        if usesSampleChart {
+        if usesRepeats {
             return "Repeat \(repeatNumber) of \(totalRepeats) · Row \(current) of \(totalRows)"
         }
         guard totalRows > 0 else { return "No rows yet" }
@@ -244,10 +311,10 @@ struct PatternViewerScreen: View {
                                 .id(r.n)
                                 .onTapGesture {
                                     let next: Int = {
-                                        if usesSampleChart {
+                                        if usesRepeats {
                                             // Stay within the current repeat — absolute row =
                                             // (current repeat's start) + the tapped chart row.
-                                            let base = (max(repeatNumber, 1) - 1) * SampleData.rowsPerRepeat
+                                            let base = (max(repeatNumber, 1) - 1) * rowsPerRepeat
                                             return base + r.n
                                         }
                                         return r.n

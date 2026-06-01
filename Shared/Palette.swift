@@ -17,6 +17,10 @@ enum Palette {
     static let paper       = Color(hex: 0xfef5f4)
     static let line        = Color(hex: 0x4a2e36).opacity(0.10)
     static let lineStrong  = Color(hex: 0x4a2e36).opacity(0.20)
+
+    /// Default swatch hex applied to projects created via PDF import or the
+    /// manual editor when the user hasn't picked a color yet (Blossom primary).
+    static let defaultImportedSwatchHex: UInt32 = 0xd49aa3
 }
 
 extension Color {

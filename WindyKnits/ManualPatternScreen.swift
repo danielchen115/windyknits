@@ -7,7 +7,7 @@ import SwiftUI
 struct ManualPattern {
     var title: String = ""
     var designer: String = ""
-    var swatchHex: UInt32 = SampleData.importedSwatchHex
+    var swatchHex: UInt32 = Palette.defaultImportedSwatchHex
     var sections: [ManualSection] = [.init(name: "Setup")]
     var activeSectionId: UUID
 
@@ -26,9 +26,9 @@ struct ManualPattern {
         self.activeSectionId = first.id
     }
 
-    /// Builds an editable ManualPattern from an existing project. For sample
-    /// projects (which don't carry their own ParsedPattern) it synthesises one
-    /// from the bundled SampleData chart so the editor isn't empty.
+    /// Builds an editable ManualPattern from an existing project. Projects
+    /// without a `pattern` open in the editor with an empty section list so
+    /// the user can author rows from scratch.
     static func from(_ project: Project) -> ManualPattern {
         var p = ManualPattern()
         p.title       = project.title
@@ -42,26 +42,7 @@ struct ManualPattern {
         p.needles     = project.needles
         p.notes       = project.notes ?? ""
 
-        let parsed: ParsedPattern? = {
-            if let pp = project.pattern { return pp }
-            if SampleData.projects.contains(where: { $0.id == project.id }) {
-                let rows = SampleData.pattern.map {
-                    ParsedRow(n: $0.n, rs: $0.rs, text: $0.text, sts: $0.sts)
-                }
-                return ParsedPattern(
-                    fileName: "",
-                    pageCount: 0,
-                    fileSizeBytes: 0,
-                    sections: [ParsedSection(name: SampleData.patternSection,
-                                              rowCount: rows.count)],
-                    rows: rows,
-                    abbreviations: Array(SampleData.abbreviations.keys)
-                )
-            }
-            return nil
-        }()
-
-        if let parsed, !parsed.rows.isEmpty {
+        if let parsed = project.pattern, !parsed.rows.isEmpty {
             // Re-associate flat rows with their sections using each section's
             // rowCount. Rows that fall outside any section's range get grouped
             // into a trailing "Pattern" section so nothing is silently lost.

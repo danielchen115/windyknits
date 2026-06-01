@@ -25,25 +25,19 @@ struct CounterScreen: View {
     // lifetime, suppresses the row chip when both fire on the same advance.
     @State private var celebrationRepeat: Int? = nil
     // Increment to trigger a new confetti burst on the primary card.
-    @State private var confettiTrigger: Int = 0
+    @State private var confettiTrigger: Int = 0 
     // True while a Live Activity is broadcasting this project to the Lock
     // Screen. Mirrors `Activity.activities` — refreshed on appear and after
     // start/end calls.
     @State private var sessionActive: Bool = false
 
-    init(projectId: String = "p1", showsBackButton: Bool = true) {
+    init(projectId: String, showsBackButton: Bool = true) {
         self.projectId = projectId
         self.showsBackButton = showsBackButton
-        // Curated demo state for the bundled sample projects, so the canvas
-        // screens read as in-progress; everything else (manual + imported)
-        // starts at zero so users see their own progress, not someone else's.
-        let isSample = SampleData.projects.contains(where: { $0.id == projectId })
-        let defaultRows     = isSample ? 5  : 0
-        let defaultStitches = isSample ? 34 : 0
         let store = SharedStore.defaults
-        _rows        = AppStorage(wrappedValue: defaultRows,
+        _rows        = AppStorage(wrappedValue: 0,
                                   SharedStore.Keys.rows(projectId), store: store)
-        _stitches    = AppStorage(wrappedValue: defaultStitches,
+        _stitches    = AppStorage(wrappedValue: 0,
                                   SharedStore.Keys.stitches(projectId), store: store)
         _linked      = AppStorage(wrappedValue: true,
                                   SharedStore.Keys.linked(projectId), store: store)
@@ -51,6 +45,9 @@ struct CounterScreen: View {
                                   SharedStore.Keys.active(projectId), store: store)
         _historyJSON = AppStorage(wrappedValue: "[]",
                                   SharedStore.Keys.history(projectId), store: store)
+        // Remember which counter the user just opened so the Counter tab
+        // can resume on it next time it's selected.
+        store.set(projectId, forKey: SharedStore.Keys.lastActiveProjectId)
     }
 
     private var repeats: Int {
@@ -67,38 +64,31 @@ struct CounterScreen: View {
         nonmutating set { activeRaw = newValue.rawValue }
     }
 
-    // True for the bundled demo projects (p1/p2/p3) — they ride on the static
-    // SampleData chart. Imported and manual projects bring their own pattern.
-    private var usesSampleChart: Bool { project.pattern == nil }
-
     // Pulls the stitch target for the row the user is currently working on —
     // that's `rows + 1` since `rows` counts completed rows. Returns 0 to mean
-    // "no goal set" (the project just doesn't have a stitch count on this row).
-    // For the bundled sample chart we keep a non-zero fallback so the demo
-    // screens still feel populated.
+    // "no goal set" (no pattern, or the pattern doesn't have a stitch count
+    // on this row).
     private var stitchGoal: Int {
         let target = rows + 1
-        if let p = project.pattern {
-            return p.rows.first(where: { $0.n == target })?.sts ?? 0
-        }
-        return SampleData.pattern.first(where: { $0.n == target })?.sts ?? 24
+        return project?.pattern?.rows.first(where: { $0.n == target })?.sts ?? 0
     }
     private var hasStitchGoal: Bool { stitchGoal > 0 }
     private var rowsGoal: Int {
-        usesSampleChart ? SampleData.patternTotalRows : max(1, project.rowsTotal)
+        max(1, project?.rowsTotal ?? 1)
     }
-    // Imported/manual patterns don't expose a chart-repeat cadence yet — treat
-    // the whole pattern as one repeat so the repeat counter degrades gracefully.
+    /// Length of one chart repeat. Charts that don't declare one (the common
+    /// case for imported/manual patterns) treat the whole pattern as a single
+    /// repeat, so the repeat counter degrades to "1 of 1" gracefully.
     private var rowsPerRepeat: Int {
-        usesSampleChart ? SampleData.rowsPerRepeat : rowsGoal
+        max(1, project?.pattern?.rowsPerRepeat ?? rowsGoal)
     }
     private var repeatGoal: Int {
         rowsPerRepeat > 0 ? max(1, rowsGoal / rowsPerRepeat) : 1
     }
 
-    private var project: Project {
-        store.project(id: projectId) ?? SampleData.project(id: projectId)
-    }
+    /// The resolved project, or a placeholder shown for one frame while the
+    /// `.onAppear` below dismisses the screen for an unknown id.
+    private var project: Project? { store.project(id: projectId) }
 
     private var completedRows: [CompletedRow] {
         CounterHistory.decode(historyJSON)
@@ -117,12 +107,7 @@ struct CounterScreen: View {
         let now = Date()
         var list = completedRows
         for n in oldRows..<newRows where n >= 1 {
-            let s: Int = {
-                if let p = project.pattern {
-                    return p.rows.first(where: { $0.n == n })?.sts ?? 24
-                }
-                return SampleData.pattern.first(where: { $0.n == n })?.sts ?? 24
-            }()
+            let s = project?.pattern?.rows.first(where: { $0.n == n })?.sts ?? 0
             list.append(.init(n: n, timestamp: now, sts: s))
         }
         if list.count > 50 { list = Array(list.suffix(50)) }
@@ -130,7 +115,13 @@ struct CounterScreen: View {
     }
 
     var body: some View {
-        content
+        Group {
+            if project == nil {
+                missingProjectState
+            } else {
+                content
+            }
+        }
             .overlay(alignment: .top) {
                 celebrationOverlay
             }
@@ -146,6 +137,42 @@ struct CounterScreen: View {
             .sensoryFeedback(.increase, trigger: stitches, condition: didIncrease)
             .sensoryFeedback(.impact(weight: .heavy), trigger: rows, condition: didIncrease)
             .sensoryFeedback(.success, trigger: repeats, condition: didIncrease)
+    }
+
+    private var missingProjectState: some View {
+        ZStack {
+            Palette.cream.ignoresSafeArea()
+            VStack(spacing: 14) {
+                navBar
+                Spacer(minLength: 20)
+                Image(systemName: "questionmark.folder")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(Palette.walnutMute)
+                    .frame(width: 72, height: 72)
+                    .background(RoundedRectangle(cornerRadius: 20).fill(Palette.creamWarm))
+                Text("Project not found.")
+                    .font(AppFont.serif(20))
+                    .foregroundStyle(Palette.walnut)
+                Text("This counter's project was removed. Pick another from your library.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.walnutMute)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .frame(maxWidth: 280)
+                if showsBackButton {
+                    Button { dismiss() } label: {
+                        Text("Back")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Capsule().fill(Palette.creamSoft))
+                    }
+                    .buttonStyle(PressScaleStyle())
+                }
+                Spacer()
+            }
+        }
     }
 
     /// Pull counter values back out of the App Group UserDefaults and write
@@ -173,6 +200,7 @@ struct CounterScreen: View {
     }
 
     private func startSession() {
+        guard let project else { return }
         // Mirror the pattern's per-row instruction text into the App Group
         // so the Live Activity intents can populate ContentState.currentRowText
         // without linking PatternStore.
@@ -200,10 +228,8 @@ struct CounterScreen: View {
 
     private func seedRowTexts() {
         var texts: [Int: String] = [:]
-        if let p = project.pattern {
+        if let p = project?.pattern {
             for row in p.rows { texts[row.n] = row.text }
-        } else if usesSampleChart {
-            for row in SampleData.pattern { texts[row.n] = row.text }
         }
         SharedStore.setRowTexts(texts, projectId: projectId)
     }
@@ -371,7 +397,7 @@ struct CounterScreen: View {
                 Color.clear.frame(width: 38, height: 38)
             }
             Spacer()
-            Text(project.title)
+            Text(project?.title ?? "Counter")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Palette.walnut)
             Spacer()
@@ -403,7 +429,7 @@ struct CounterScreen: View {
         case .stitches:
             guard hasStitchGoal else { return "count freely · no goal on this row" }
             return linked ? "of \(stitchGoal) → auto-bumps row" : "of \(stitchGoal)"
-        case .rows:     return usesSampleChart ? "of \(rowsGoal) — yoke" : "of \(rowsGoal) rows"
+        case .rows:     return "of \(rowsGoal) rows"
         case .repeats:  return "of \(repeatGoal) chart repeats — row \(rowInRepeat) of \(rowsPerRepeat)"
         }
     }

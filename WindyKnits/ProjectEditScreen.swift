@@ -27,9 +27,11 @@ struct ProjectEditScreen: View {
 
     init(projectId: String) {
         self.projectId = projectId
-        let project = PatternStore.shared.project(id: projectId)
-            ?? SampleData.project(id: projectId)
-        _pattern = State(initialValue: ManualPattern.from(project))
+        // Navigation should always pass a real id; if the project is gone,
+        // open with a blank editor and dismiss() runs from .onAppear below.
+        let initial = PatternStore.shared.project(id: projectId).map(ManualPattern.from)
+            ?? ManualPattern()
+        _pattern = State(initialValue: initial)
     }
 
     var body: some View {
@@ -44,6 +46,9 @@ struct ProjectEditScreen: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            if store.project(id: projectId) == nil { dismiss() }
+        }
     }
 
     // MARK: Nav
@@ -197,7 +202,10 @@ struct ProjectEditScreen: View {
     // MARK: Save
 
     private func save() {
-        var project = store.project(id: projectId) ?? SampleData.project(id: projectId)
+        guard var project = store.project(id: projectId) else {
+            dismiss()
+            return
+        }
 
         let title = pattern.title.trimmingCharacters(in: .whitespacesAndNewlines)
         project.title    = title.isEmpty ? project.title : title

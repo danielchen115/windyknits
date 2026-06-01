@@ -75,7 +75,10 @@ struct IncrementRowIntent: LiveActivityIntent {
     init(projectId: String?) { self.projectId = projectId }
 
     func perform() async throws -> some IntentResult {
-        let id = projectId ?? "p1"
+        // Required projectId — Live Activity buttons always carry one via the
+        // activity's attributes. Shortcuts built without one no-op rather
+        // than silently mutate a hard-coded project.
+        guard let id = projectId, !id.isEmpty else { return .result() }
         let current = SharedStore.defaults.integer(forKey: SharedStore.Keys.rows(id))
         let next = current + 1
 
@@ -110,7 +113,7 @@ struct DecrementRowIntent: LiveActivityIntent {
     init(projectId: String?) { self.projectId = projectId }
 
     func perform() async throws -> some IntentResult {
-        let id = projectId ?? "p1"
+        guard let id = projectId, !id.isEmpty else { return .result() }
         let current = SharedStore.defaults.integer(forKey: SharedStore.Keys.rows(id))
         let next = max(0, current - 1)
         await CounterMutation.apply(newRows: next, projectId: id)
@@ -132,7 +135,7 @@ struct ResetRowsIntent: LiveActivityIntent {
     init(projectId: String?) { self.projectId = projectId }
 
     func perform() async throws -> some IntentResult {
-        let id = projectId ?? "p1"
+        guard let id = projectId, !id.isEmpty else { return .result() }
         SharedStore.defaults.set("[]", forKey: SharedStore.Keys.history(id))
         await CounterMutation.apply(newRows: 0, projectId: id)
         return .result()
