@@ -4,9 +4,10 @@ import Foundation
 /// section, App Store metadata, and any future surfaces (welcome screens,
 /// onboarding) share one source of truth.
 enum AppLinks {
-    /// Hosted privacy policy. Swap in the production URL before submission.
-    // TODO: replace with hosted privacy policy URL before App Store submission.
-    static let privacyPolicy = URL(string: "https://example.com/windyknits-privacy")!
+    /// Hosted privacy policy. Served by GitHub Pages out of the `docs/`
+    /// folder in this repo — update both this URL and `docs/privacy.html`
+    /// when the policy changes.
+    static let privacyPolicy = URL(string: "https://danielchen115.github.io/windyknits/privacy.html")!
 
     /// Short attribution line shown in Settings → About. Plain text — keep
     /// in sync with the parsing tiers in `PatternLLMRefiner`.
