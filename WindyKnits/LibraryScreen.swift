@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryScreen: View {
     @Environment(PatternStore.self) private var store
+    @Environment(FeatureFlags.self) private var flags
     @State private var filter: ProjectStatus = .active
 
     /// Project whose status sheet is open (from kebab or swipe-left → Move).
@@ -64,7 +65,7 @@ struct LibraryScreen: View {
                 .font(AppFont.serif(34))
                 .foregroundStyle(Palette.walnut)
             Spacer()
-            NavigationLink(value: Route.importPDF) {
+            NavigationLink(value: flags.pdfImportEnabled ? Route.importPDF : Route.manualPattern) {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
@@ -72,6 +73,8 @@ struct LibraryScreen: View {
                     .background(Circle().fill(Palette.primary))
             }
             .buttonStyle(PressScaleStyle())
+            // UI tests look for this id — keep in sync with WindyKnitsUITests.
+            .accessibilityIdentifier("library.add")
         }
         .padding(.horizontal, 24)
         .padding(.top, 20)
@@ -107,7 +110,8 @@ struct LibraryScreen: View {
     private var list: some View {
         let items = store.projects(in: filter)
         if items.isEmpty {
-            LibraryEmptyState(filter: filter)
+            LibraryEmptyState(filter: filter,
+                              pdfImportEnabled: flags.pdfImportEnabled)
                 .padding(.top, 8)
         } else {
             VStack(spacing: 12) {
@@ -126,6 +130,8 @@ struct LibraryScreen: View {
                             onCastOn:  { castOn(p) }
                         )
                     }
+                    // UI tests find rows by `library.row.<projectId>`.
+                    .accessibilityIdentifier("library.row.\(p.id)")
                     .onChange(of: filter) { _, _ in
                         // Closing all swipes on tab change happens via the
                         // shared swipedRow state — but if a project moves
@@ -457,6 +463,7 @@ private struct LibraryRow: View {
 
 private struct LibraryEmptyState: View {
     let filter: ProjectStatus
+    let pdfImportEnabled: Bool
 
     private var copy: (head: String, sub: String) {
         switch filter {
@@ -484,7 +491,7 @@ private struct LibraryEmptyState: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 280)
                 .lineSpacing(2)
-            NavigationLink(value: Route.importPDF) {
+            NavigationLink(value: pdfImportEnabled ? Route.importPDF : Route.manualPattern) {
                 HStack(spacing: 6) {
                     Image(systemName: "plus")
                     Text("Add a pattern")

@@ -3,10 +3,15 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(WindyKnitsSettings.self) private var settings
+    @Environment(UserAccount.self) private var account
+    #if DEBUG
+    @Environment(FeatureFlags.self) private var flags
+    #endif
 
     @State private var keyField: String = ""
     @State private var didLoadKey = false
     @State private var keyHidden: Bool = true
+    @State private var showSignOutConfirm = false
     #if DEBUG
     @State private var showWipeConfirm = false
     @State private var devToast: String?
@@ -21,9 +26,11 @@ struct SettingsScreen: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         intro
+                        accountSection
                         keySection
                         cloudSection
                         resetSection
+                        aboutSection
                         #if DEBUG
                         devSection
                         #endif
@@ -48,6 +55,15 @@ struct SettingsScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             #endif
+        }
+        .alert("Sign out?",
+               isPresented: $showSignOutConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                account.signOut()
+            }
+        } message: {
+            Text("You'll need to sign in with Apple again next time. Your projects and counters stay on this device.")
         }
         #if DEBUG
         .alert("Wipe all data?",
@@ -98,6 +114,59 @@ struct SettingsScreen: View {
                 .lineSpacing(3)
         }
         .padding(.top, 6)
+    }
+
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Account").eyebrow()
+            SoftCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(Palette.primary)
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Text(accountInitial)
+                                    .font(AppFont.serif(16))
+                                    .foregroundStyle(.white)
+                            )
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(account.displayName ?? "")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Palette.walnut)
+                            if let email = account.email, !email.isEmpty {
+                                Text(email)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Palette.walnutSoft)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            } else {
+                                Text("Signed in with Apple")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Palette.walnutSoft)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    Divider().background(Palette.line)
+                    Button { showSignOutConfirm = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Sign Out")
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.primaryDark)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var accountInitial: String {
+        guard let first = account.displayName?.first else { return "" }
+        return String(first).uppercased()
     }
 
     private var keySection: some View {
@@ -201,9 +270,49 @@ struct SettingsScreen: View {
         }
     }
 
+    /// App version, privacy policy link, and a short acknowledgments line.
+    /// Required surface for App Store: the privacy policy must also be
+    /// linked from the listing, but having it in-app is the App Review
+    /// guidelines' expectation.
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("About").eyebrow()
+            SoftCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Version")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                        Spacer()
+                        Text(AppVersion.formatted)
+                            .font(AppFont.mono(13))
+                            .foregroundStyle(Palette.walnutSoft)
+                    }
+                    Divider().background(Palette.line)
+                    Link(destination: AppLinks.privacyPolicy) {
+                        HStack {
+                            Text("Privacy policy")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Palette.walnut)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Palette.walnutMute)
+                        }
+                    }
+                    Divider().background(Palette.line)
+                    Text(AppLinks.acknowledgments)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.walnutSoft)
+                        .lineSpacing(3)
+                }
+            }
+        }
+    }
+
     #if DEBUG
-    /// Surfaces seed/wipe shortcuts on Debug builds only. Stripped from
-    /// Release entirely via `#if DEBUG`.
+    /// Surfaces seed/wipe shortcuts and feature-flag toggles on Debug builds
+    /// only. Stripped from Release entirely via `#if DEBUG`.
     private var devSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Developer").eyebrow()
@@ -226,8 +335,28 @@ struct SettingsScreen: View {
                     .buttonStyle(PressScaleStyle())
                 }
             }
+            featureFlagsCard
             Text("Debug builds only — not shipped to the App Store.")
                 .meta(size: 11)
+        }
+    }
+
+    private var featureFlagsCard: some View {
+        SoftCard(padding: 14) {
+            Toggle(isOn: Binding(
+                get: { flags.pdfImportEnabled },
+                set: { flags.setPdfImportEnabled($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PDF import")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Palette.walnut)
+                    Text("Show the Import PDF entry points. Hidden in Release builds.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Palette.walnutSoft)
+                }
+            }
+            .tint(Palette.primary)
         }
     }
 
@@ -259,7 +388,11 @@ struct SettingsScreen: View {
 }
 
 #Preview {
-    NavigationStack { SettingsScreen() }
+    let account = UserAccount()
+    account.adopt(.init(userID: "preview", displayName: "Windy", email: "windy@example.com"))
+    return NavigationStack { SettingsScreen() }
         .environment(WindyKnitsSettings.shared)
+        .environment(FeatureFlags.shared)
+        .environment(account)
         .tint(Palette.primary)
 }

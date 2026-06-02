@@ -217,8 +217,6 @@ struct PatternViewerScreen: View {
                         .overlay(Circle().strokeBorder(Palette.line, lineWidth: 0.5))
                 }
                 .buttonStyle(PressScaleStyle())
-
-                CircleIconButton(system: "ellipsis") {}
             }
         }
         .padding(.horizontal, 16)

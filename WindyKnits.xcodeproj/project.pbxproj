@@ -28,6 +28,13 @@
 			remoteGlobalIDString = 785005092FBE962600DCEDB8;
 			remoteInfo = WindyKnitsWidgetExtension;
 		};
+		78F104FE2FCDE49700086AF2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 787E6DFB2FBCBDB000E9259A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 787E6E022FBCBDB000E9259A;
+			remoteInfo = WindyKnits;
+		};
 		D17E600000000000001010AA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 787E6DFB2FBCBDB000E9259A /* Project object */;
@@ -59,6 +66,7 @@
 		7850052C2FBEA68500DCEDB8 /* SharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
 		785005322FBEA88200DCEDB8 /* WindyKnitsWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WindyKnitsWidgetExtension.entitlements; sourceTree = "<group>"; };
 		787E6E032FBCBDB000E9259A /* WindyKnits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WindyKnits.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		78F104F82FCDE49700086AF2 /* WindyKnitsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WindyKnitsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D17E600000000000000030AA /* CounterActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CounterActivityAttributes.swift; sourceTree = "<group>"; };
 		D17E600000000000000040AA /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		D17E600000000000001020AA /* WindyKnitsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WindyKnitsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +96,11 @@
 			path = WindyKnits;
 			sourceTree = "<group>";
 		};
+		78F104F92FCDE49700086AF2 /* WindyKnitsUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WindyKnitsUITests;
+			sourceTree = "<group>";
+		};
 		D17E600000000000001030AA /* WindyKnitsTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WindyKnitsTests;
@@ -106,6 +119,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		787E6E002FBCBDB000E9259A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		78F104F52FCDE49700086AF2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -149,6 +169,7 @@
 				787E6E052FBCBDB000E9259A /* WindyKnits */,
 				785005102FBE962600DCEDB8 /* WindyKnitsWidget */,
 				D17E600000000000001030AA /* WindyKnitsTests */,
+				78F104F92FCDE49700086AF2 /* WindyKnitsUITests */,
 				7850050B2FBE962600DCEDB8 /* Frameworks */,
 				787E6E042FBCBDB000E9259A /* Products */,
 				7850052D2FBEA68500DCEDB8 /* Shared */,
@@ -161,6 +182,7 @@
 				787E6E032FBCBDB000E9259A /* WindyKnits.app */,
 				7850050A2FBE962600DCEDB8 /* WindyKnitsWidgetExtension.appex */,
 				D17E600000000000001020AA /* WindyKnitsTests.xctest */,
+				78F104F82FCDE49700086AF2 /* WindyKnitsUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -214,6 +236,29 @@
 			productReference = 787E6E032FBCBDB000E9259A /* WindyKnits.app */;
 			productType = "com.apple.product-type.application";
 		};
+		78F104F72FCDE49700086AF2 /* WindyKnitsUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 78F105002FCDE49700086AF2 /* Build configuration list for PBXNativeTarget "WindyKnitsUITests" */;
+			buildPhases = (
+				78F104F42FCDE49700086AF2 /* Sources */,
+				78F104F52FCDE49700086AF2 /* Frameworks */,
+				78F104F62FCDE49700086AF2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				78F104FF2FCDE49700086AF2 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				78F104F92FCDE49700086AF2 /* WindyKnitsUITests */,
+			);
+			name = WindyKnitsUITests;
+			packageProductDependencies = (
+			);
+			productName = WindyKnitsUITests;
+			productReference = 78F104F82FCDE49700086AF2 /* WindyKnitsUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		D17E600000000000001050AA /* WindyKnitsTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D17E600000000000001070AA /* Build configuration list for PBXNativeTarget "WindyKnitsTests" */;
@@ -254,6 +299,10 @@
 					787E6E022FBCBDB000E9259A = {
 						CreatedOnToolsVersion = 26.5;
 					};
+					78F104F72FCDE49700086AF2 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 787E6E022FBCBDB000E9259A;
+					};
 					D17E600000000000001050AA = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 787E6E022FBCBDB000E9259A;
@@ -277,6 +326,7 @@
 				787E6E022FBCBDB000E9259A /* WindyKnits */,
 				785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */,
 				D17E600000000000001050AA /* WindyKnitsTests */,
+				78F104F72FCDE49700086AF2 /* WindyKnitsUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -290,6 +340,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		787E6E012FBCBDB000E9259A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		78F104F62FCDE49700086AF2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -328,6 +385,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		78F104F42FCDE49700086AF2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D17E600000000000001060AA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -342,6 +406,11 @@
 			isa = PBXTargetDependency;
 			target = 785005092FBE962600DCEDB8 /* WindyKnitsWidgetExtension */;
 			targetProxy = 7850051A2FBE962800DCEDB8 /* PBXContainerItemProxy */;
+		};
+		78F104FF2FCDE49700086AF2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 787E6E022FBCBDB000E9259A /* WindyKnits */;
+			targetProxy = 78F104FE2FCDE49700086AF2 /* PBXContainerItemProxy */;
 		};
 		D17E600000000000001011AA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -358,6 +427,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = WindyKnitsWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
@@ -371,8 +441,9 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.WindyKnitsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.app.WindyKnitsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -391,6 +462,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = WindyKnitsWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
@@ -404,8 +476,9 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.WindyKnitsWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.app.WindyKnitsWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -543,11 +616,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WindyKnits/WindyKnits.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WindyKnits;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Daniel Chen";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -559,8 +635,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -577,11 +654,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WindyKnits/WindyKnits.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 72767AGBJ3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WindyKnits;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Daniel Chen";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -593,8 +673,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnits.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -602,6 +683,46 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		78F105012FCDE49700086AF2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72767AGBJ3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnitsUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WindyKnits;
+			};
+			name = Debug;
+		};
+		78F105022FCDE49700086AF2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 72767AGBJ3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dc.WindyKnitsUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = WindyKnits;
 			};
 			name = Release;
 		};
@@ -673,6 +794,15 @@
 			buildConfigurations = (
 				787E6E0F2FBCBDB300E9259A /* Debug */,
 				787E6E102FBCBDB300E9259A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		78F105002FCDE49700086AF2 /* Build configuration list for PBXNativeTarget "WindyKnitsUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				78F105012FCDE49700086AF2 /* Debug */,
+				78F105022FCDE49700086AF2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

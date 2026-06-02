@@ -50,7 +50,7 @@ struct PatternStoreTests {
 
 ### App Group bridge (the critical one)
 
-App and Live Activity widget share state through App Group `group.dc.WindyKnits`. `SharedStore` is the single source of truth for counter keys (`counter.<projectId>.rows`, `.stitches`, `.history`, `.rowTexts`, etc.). The app uses `@AppStorage(..., store: SharedStore.defaults)`; the widget intents use `SharedStore.defaults.set(...)` directly.
+App and Live Activity widget share state through App Group `group.dc.knitting.shared`. `SharedStore` is the single source of truth for counter keys (`counter.<projectId>.rows`, `.stitches`, `.history`, `.rowTexts`, etc.). The app uses `@AppStorage(..., store: SharedStore.defaults)`; the widget intents use `SharedStore.defaults.set(...)` directly.
 
 Two consequences worth knowing before changing this code:
 

@@ -24,7 +24,7 @@ struct SharedStoreTests {
     }
 
     @Test func usesAppGroupSuite() {
-        #expect(SharedStore.appGroup == "group.dc.WindyKnits")
+        #expect(SharedStore.appGroup == "group.dc.knitting.shared")
     }
 
     @Test func rowTextRoundTripsThroughDefaults() {

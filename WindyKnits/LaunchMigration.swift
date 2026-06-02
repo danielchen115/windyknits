@@ -16,12 +16,13 @@ enum LaunchMigration {
     static func runIfNeeded() {
         guard !UserDefaults.standard.bool(forKey: sentinelKey) else { return }
 
-        // Snapshot the project ids the store knows about. Lazily creates
-        // PatternStore.shared (which loads from UserDefaults), so any
-        // surviving imported projects are recognised here.
-        let validIds = Set(PatternStore.shared.imported.map(\.id))
-
         Task { @MainActor in
+            // Capture inside the Task so post-init seeding (e.g. the UI-test
+            // `--ui-test-seed-samples` hook in `LaunchArguments.applyIfNeeded`,
+            // which runs synchronously after this call) is included in the
+            // valid-id set. Otherwise the sweep below would treat the freshly
+            // seeded `counter.<id>.*` keys as orphans and remove them.
+            let validIds = Set(PatternStore.shared.imported.map(\.id))
             await endOrphanLiveActivities(validIds: validIds)
             sweepOrphanCounterKeys(validIds: validIds)
             dropLegacyPatternStoreKeys()

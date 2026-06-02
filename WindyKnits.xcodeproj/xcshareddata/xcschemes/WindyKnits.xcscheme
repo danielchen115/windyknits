@@ -54,6 +54,17 @@
                ReferencedContainer = "container:WindyKnits.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "78F104F72FCDE49700086AF2"
+               BuildableName = "WindyKnitsUITests.xctest"
+               BlueprintName = "WindyKnitsUITests"
+               ReferencedContainer = "container:WindyKnits.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

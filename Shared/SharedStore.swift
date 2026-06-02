@@ -1,12 +1,12 @@
 import Foundation
 
 /// State shared between the app and the Live Activity intent. Both targets are
-/// in the `group.dc.WindyKnits` App Group, so reads/writes through `defaults`
+/// in the `group.dc.knitting.shared` App Group, so reads/writes through `defaults`
 /// are visible across the process boundary — important because the +1 button
 /// on the Lock Screen runs `IncrementRowIntent` in the extension process,
 /// which must mutate the same counter the app reads.
 enum SharedStore {
-    static let appGroup = "group.dc.WindyKnits"
+    static let appGroup = "group.dc.knitting.shared"
 
     static let defaults: UserDefaults = {
         UserDefaults(suiteName: appGroup) ?? .standard

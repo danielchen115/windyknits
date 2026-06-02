@@ -283,19 +283,6 @@ private struct ImportPick: View {
             }
             .buttonStyle(PressScaleStyle())
 
-            VStack(spacing: 10) {
-                ImportSourceRow(icon: "books.vertical",
-                                label: "Ravelry library",
-                                sub: "Connected · 14 patterns")
-                ImportSourceRow(icon: "folder",
-                                label: "From Files",
-                                sub: "iCloud Drive, Dropbox…",
-                                action: onPick)
-                ImportSourceRow(icon: "text.bubble",
-                                label: "Paste text",
-                                sub: "For shorter patterns")
-            }
-
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "checkmark")
                     .font(.system(size: 13, weight: .bold))
@@ -313,41 +300,6 @@ private struct ImportPick: View {
             )
         }
         .padding(.horizontal, 24)
-    }
-}
-
-private struct ImportSourceRow: View {
-    let icon: String
-    let label: String
-    let sub: String
-    var action: (() -> Void)? = nil
-
-    var body: some View {
-        Button {
-            action?()
-        } label: {
-            SoftCard(padding: 14) {
-                HStack(spacing: 14) {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Palette.walnutSoft)
-                        .frame(width: 40, height: 40)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Palette.creamSoft))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(label)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Palette.walnut)
-                        Text(sub).meta(size: 12)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Palette.walnutMute)
-                }
-            }
-        }
-        .buttonStyle(PressScaleStyle())
-        .disabled(action == nil)
     }
 }
 

@@ -45,9 +45,15 @@ struct CounterScreen: View {
                                   SharedStore.Keys.active(projectId), store: store)
         _historyJSON = AppStorage(wrappedValue: "[]",
                                   SharedStore.Keys.history(projectId), store: store)
-        // Remember which counter the user just opened so the Counter tab
-        // can resume on it next time it's selected.
-        store.set(projectId, forKey: SharedStore.Keys.lastActiveProjectId)
+    }
+
+    /// Remembers which counter the user just opened so the Counter tab can
+    /// resume on it next time it's selected. Lives in `.onAppear` — not
+    /// `init` — because `CounterTabRoot` observes the same key and would
+    /// re-render → re-mount this view in a loop.
+    private func rememberAsLastActiveProject() {
+        SharedStore.defaults.set(projectId,
+                                 forKey: SharedStore.Keys.lastActiveProjectId)
     }
 
     private var repeats: Int {
@@ -133,6 +139,7 @@ struct CounterScreen: View {
             .onAppear {
                 refreshSessionState()
                 reloadFromAppGroup()
+                rememberAsLastActiveProject()
             }
             .sensoryFeedback(.increase, trigger: stitches, condition: didIncrease)
             .sensoryFeedback(.impact(weight: .heavy), trigger: rows, condition: didIncrease)
@@ -401,7 +408,8 @@ struct CounterScreen: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Palette.walnut)
             Spacer()
-            CircleIconButton(system: "ellipsis") {}
+            // Reserve the right slot so the title stays centred.
+            Color.clear.frame(width: 38, height: 38)
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -449,6 +457,8 @@ struct CounterScreen: View {
                 .foregroundStyle(.white)
                 .monospacedDigit()
                 .padding(.top, 8)
+                // UI tests read the current primary counter value via this id.
+                .accessibilityIdentifier("counter.primaryValue")
             Text(primaryHint)
                 .font(AppFont.mono(13))
                 .foregroundStyle(.white.opacity(0.85))
@@ -506,6 +516,10 @@ struct CounterScreen: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.55), value: celebrationRepeat)
         .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .onTapGesture { tapPrimary() }
+        // Keep children (incl. counter.primaryValue) individually accessible.
+        // Without this, attaching an identifier to the pad would merge all
+        // children into one combined element and hide the value Text.
+        .accessibilityElement(children: .contain)
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
     }
@@ -604,6 +618,8 @@ struct CounterScreen: View {
                     )
                 }
                 .buttonStyle(PressScaleStyle())
+                // UI tests tap `counter.secondary.rows` etc. to switch active mode.
+                .accessibilityIdentifier("counter.secondary.\(c.id.rawValue)")
             }
         }
         .padding(.horizontal, 16)

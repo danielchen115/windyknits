@@ -4,6 +4,8 @@ struct TodayScreen: View {
     @Binding var path: NavigationPath
     var switchTab: (AppTab) -> Void = { _ in }
     @Environment(PatternStore.self) private var store
+    @Environment(FeatureFlags.self) private var flags
+    @Environment(UserAccount.self) private var account
 
     init(path: Binding<NavigationPath> = .constant(NavigationPath()),
          switchTab: @escaping (AppTab) -> Void = { _ in }) {
@@ -53,7 +55,7 @@ struct TodayScreen: View {
     private var greeting: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(todayLabel).meta()
-            Text("Hello, Windy.")
+            Text(greetingText)
                 .font(AppFont.serif(34))
                 .foregroundStyle(Palette.walnut)
             if let subtitle = greetingSubtitle {
@@ -66,6 +68,13 @@ struct TodayScreen: View {
         .padding(.horizontal, 24)
         .padding(.top, 12)
         .padding(.bottom, 18)
+    }
+
+    private var greetingText: String {
+        if let name = account.displayName, !name.isEmpty {
+            return "Hello, \(name)."
+        }
+        return "Hello."
     }
 
     private var greetingSubtitle: String? {
@@ -85,11 +94,47 @@ struct TodayScreen: View {
                         .foregroundStyle(Palette.walnutSoft)
                         .lineSpacing(2)
                 }
-                HStack(spacing: 10) {
-                    NavigationLink(value: Route.importPDF) {
+                if flags.pdfImportEnabled {
+                    HStack(spacing: 10) {
+                        NavigationLink(value: Route.importPDF) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.up.doc")
+                                Text("Import PDF")
+                            }
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.primary))
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        // UI tests look for this id — keep in sync with WindyKnitsUITests.
+                        .accessibilityIdentifier("today.start.importPDF")
+
+                        NavigationLink(value: Route.manualPattern) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "pencil.line")
+                                Text("Add manually")
+                            }
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Palette.walnut)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.creamSoft))
+                        }
+                        .buttonStyle(PressScaleStyle())
+                        // Same id as the single-button case so tests can find
+                        // the "go to manual editor" entry point regardless of
+                        // the feature-flag state.
+                        .accessibilityIdentifier("today.start.addPattern")
+                    }
+                } else {
+                    // No PDF import path, so "manually" loses its meaning —
+                    // there's no other way to add a pattern.
+                    NavigationLink(value: Route.manualPattern) {
                         HStack(spacing: 6) {
-                            Image(systemName: "arrow.up.doc")
-                            Text("Import PDF")
+                            Image(systemName: "pencil.line")
+                            Text("Add pattern")
                         }
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
@@ -98,19 +143,7 @@ struct TodayScreen: View {
                         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.primary))
                     }
                     .buttonStyle(PressScaleStyle())
-
-                    NavigationLink(value: Route.manualPattern) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "pencil.line")
-                            Text("Add manually")
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Palette.walnut)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.creamSoft))
-                    }
-                    .buttonStyle(PressScaleStyle())
+                    .accessibilityIdentifier("today.start.addPattern")
                 }
             }
         }
@@ -149,10 +182,10 @@ struct TodayScreen: View {
                         .buttonStyle(.plain)
                     }
                 }
-                NavigationLink(value: Route.importPDF) {
+                NavigationLink(value: flags.pdfImportEnabled ? Route.importPDF : Route.manualPattern) {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
-                        Text("Import a pattern PDF")
+                        Text(flags.pdfImportEnabled ? "Import a pattern PDF" : "Add a pattern")
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Palette.walnutSoft)
@@ -405,10 +438,14 @@ struct ProjectRow: View {
 
 #Preview {
     @Previewable @State var path = NavigationPath()
-    NavigationStack(path: $path) {
+    let account = UserAccount()
+    account.adopt(.init(userID: "preview", displayName: "Windy", email: nil))
+    return NavigationStack(path: $path) {
         TodayScreen(path: $path)
             .navigationDestinationForRoutes()
     }
     .environment(PatternStore.shared)
+    .environment(FeatureFlags.shared)
+    .environment(account)
     .tint(Palette.primary)
 }

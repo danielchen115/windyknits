@@ -195,6 +195,8 @@ struct ManualPatternScreen: View {
                         .background(RoundedRectangle(cornerRadius: 10).fill(Palette.primary))
                 }
                 .buttonStyle(PressScaleStyle())
+                // UI tests tap this to commit a freshly-built pattern.
+                .accessibilityIdentifier("manualPattern.saveButton")
             } else {
                 Color.clear.frame(width: 38, height: 38)
             }
@@ -331,6 +333,8 @@ private struct ManualStart: View {
                         )
                         .font(.system(size: 15))
                         .foregroundStyle(Palette.walnut)
+                        // UI tests type the new pattern's title here.
+                        .accessibilityIdentifier("manualPattern.nameField")
                 }
                 FormField(label: "Designer",
                           hint: "Optional — your name, the designer's, or leave blank.") {
@@ -350,46 +354,22 @@ private struct ManualStart: View {
                 }
                 FormField(label: "Cover", hint: "Pick a color for the swatch.") {
                     HStack(spacing: 10) {
-                        Button {} label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 14, weight: .semibold))
-                                Text("Add photo")
-                                    .font(.system(size: 13, weight: .semibold))
+                        ForEach(coverChoices, id: \.self) { hex in
+                            Button {
+                                pattern.swatchHex = hex
+                            } label: {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color(hex: hex))
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .strokeBorder(pattern.swatchHex == hex
+                                                          ? Palette.walnut
+                                                          : Color.black.opacity(0.1),
+                                                          lineWidth: pattern.swatchHex == hex ? 2 : 0.5)
+                                    )
                             }
-                            .foregroundStyle(Palette.walnutMute)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(Palette.paper)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                                    .foregroundStyle(Palette.lineStrong)
-                            )
-                        }
-                        .buttonStyle(PressScaleStyle())
-
-                        HStack(spacing: 6) {
-                            ForEach(coverChoices, id: \.self) { hex in
-                                Button {
-                                    pattern.swatchHex = hex
-                                } label: {
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color(hex: hex))
-                                        .frame(width: 44, height: 44)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                .strokeBorder(pattern.swatchHex == hex
-                                                              ? Palette.walnut
-                                                              : Color.black.opacity(0.1),
-                                                              lineWidth: pattern.swatchHex == hex ? 2 : 0.5)
-                                        )
-                                }
-                                .buttonStyle(PressScaleStyle())
-                            }
+                            .buttonStyle(PressScaleStyle())
                         }
                     }
                 }
@@ -413,6 +393,8 @@ private struct ManualStart: View {
             }
             .buttonStyle(PressScaleStyle())
             .disabled(!canContinue)
+            // UI tests tap this to advance from start → build step.
+            .accessibilityIdentifier("manualPattern.continueButton")
             .padding(.top, 28)
 
             Text("You can edit any of these later.")
@@ -870,6 +852,8 @@ struct ManualBuild: View {
                             .strokeBorder(inputFocused ? Palette.primary : Palette.lineStrong,
                                           lineWidth: inputFocused ? 1.5 : 0.5)
                     )
+                    // UI tests type a row's instruction text here.
+                    .accessibilityIdentifier("manualPattern.rowInput")
             }
 
             Button(action: commitDraft) {
@@ -883,6 +867,8 @@ struct ManualBuild: View {
             }
             .buttonStyle(PressScaleStyle())
             .disabled(!canSend)
+            // UI tests tap this to commit the drafted row.
+            .accessibilityIdentifier("manualPattern.rowSend")
         }
         .padding(.horizontal, 12)
         .padding(.top, 4)
@@ -1133,6 +1119,8 @@ private struct ManualSaved: View {
                         )
                 }
                 .buttonStyle(PressScaleStyle())
+                // UI tests tap this to navigate to the newly-saved project.
+                .accessibilityIdentifier("manualPattern.openProject")
                 Button(action: onKeepEditing) {
                     Text("Keep editing")
                         .font(.system(size: 14, weight: .semibold))
