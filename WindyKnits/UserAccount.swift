@@ -1,3 +1,4 @@
+import ActivityKit
 import AuthenticationServices
 import Foundation
 import Observation
@@ -33,6 +34,14 @@ final class UserAccount {
     private(set) var appleUserID: String?
     private(set) var displayName: String?
     private(set) var email: String?
+
+    /// Transient — set true by `adopt(_:)` when the just-signed-in user has
+    /// no usable display name, so the UI can present a one-shot name-entry
+    /// sheet. Cleared on dismissal, on successful `updateDisplayName`, and
+    /// on `signOut` so it never leaks across identities. Deliberately not
+    /// persisted: a force-quit during the prompt means we don't nag the user
+    /// on every launch — they can always set the name in Settings later.
+    var needsNameEntry: Bool = false
 
     var isSignedIn: Bool { appleUserID != nil }
 
@@ -70,6 +79,30 @@ final class UserAccount {
             email = newEmail
             Keychain.write(Self.emailAccount, value: newEmail)
         }
+
+        // After the dust settles, do we still lack a name? Apple withholds
+        // `fullName` on every sign-in after the first one for a given Apple
+        // ID + app pair, so a re-signed (or post-delete-account) user lands
+        // here with `displayName` nil. Signal the UI to prompt once.
+        needsNameEntry = (displayName ?? "").isEmpty
+    }
+
+    /// Replace the locally-cached display name from user input — typically
+    /// the inline-editable field in Settings → Account. Needed because Apple
+    /// only delivers the SIWA `fullName` on the **very first** sign-in for an
+    /// Apple ID + app pair; any re-sign-in (including after `deleteAccount`)
+    /// returns nil, leaving us with no name to greet the user with. Empty or
+    /// whitespace-only input clears the override entirely.
+    func updateDisplayName(_ newValue: String) {
+        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            displayName = nil
+            defaults.removeObject(forKey: Self.displayNameKey)
+        } else {
+            displayName = trimmed
+            defaults.set(trimmed, forKey: Self.displayNameKey)
+            needsNameEntry = false
+        }
     }
 
     /// Clear all identity state. The root-view gate flips to the welcome
@@ -78,9 +111,39 @@ final class UserAccount {
         appleUserID = nil
         displayName = nil
         email = nil
+        needsNameEntry = false
         Keychain.write(Self.appleUserIDAccount, value: nil)
         Keychain.write(Self.emailAccount, value: nil)
         defaults.removeObject(forKey: Self.displayNameKey)
+    }
+
+    /// Permanently delete the account and every piece of on-device data
+    /// tied to it — required by App Store Review Guideline 5.1.1(v).
+    ///
+    /// Order matters: end Live Activities first so the widget extension
+    /// can't repopulate counter keys mid-wipe; clear identity last so the
+    /// root-view gate's flip to `WelcomeView` is what signals completion
+    /// to the user (no toast or confirmation screen — just teleport home).
+    ///
+    /// We deliberately do not call Apple's REST `/auth/revoke` endpoint —
+    /// that requires a server with the team's private signing key, which
+    /// a client-only app doesn't have. The confirmation copy in
+    /// `SettingsScreen` points the user at iOS Settings → Apple ID → Sign
+    /// in with Apple if they also want to revoke the server-side record.
+    ///
+    /// Note: Live Activity termination can't be unit-tested — it needs
+    /// the ActivityKit host process — so step 1 is verified manually.
+    @MainActor
+    func deleteAccount() async {
+        for activity in Activity<CounterActivityAttributes>.activities {
+            await activity.end(dismissalPolicy: .immediate)
+        }
+        PatternStore.shared.resetAll()
+        SharedStore.wipeAllCounterKeys()
+        WindyKnitsSettings.shared.anthropicAPIKey = nil
+        WindyKnitsSettings.shared.cloudConsent = nil
+        defaults.removeObject(forKey: "patterns.cleanupV2.done")
+        signOut()
     }
 
     /// Re-validate the stored Apple user ID against Apple's servers. Runs

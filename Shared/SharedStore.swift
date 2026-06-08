@@ -49,6 +49,18 @@ enum SharedStore {
         return dict[String(rowNumber)]
     }
 
+    /// Removes every `counter.*` key in the shared suite plus the App Group
+    /// migration sentinel. Used by account deletion and by the Debug
+    /// "Wipe all data" tool. The sentinel is reset so a future reinstall on
+    /// the same device re-runs `migrateFromStandardIfNeeded()` and picks up
+    /// any legacy `.standard`-suite keys it might find.
+    static func wipeAllCounterKeys() {
+        for (key, _) in defaults.dictionaryRepresentation() where key.hasPrefix("counter.") {
+            defaults.removeObject(forKey: key)
+        }
+        defaults.removeObject(forKey: "counter.migratedToAppGroup.v1")
+    }
+
     /// One-shot copy of any pre-existing `counter.*` keys out of
     /// `UserDefaults.standard` into the shared suite. Older builds wrote to
     /// `.standard`; without this, a user upgrading would see counters reset.

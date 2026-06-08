@@ -11,7 +11,13 @@ struct SettingsScreen: View {
     @State private var keyField: String = ""
     @State private var didLoadKey = false
     @State private var keyHidden: Bool = true
+    @State private var nameField: String = ""
+    @State private var didLoadName = false
     @State private var showSignOutConfirm = false
+    @State private var showDeleteConfirm = false
+    // Guards the async deleteAccount() against re-entry from a second tap
+    // before the root view tears this screen down.
+    @State private var isDeleting = false
     #if DEBUG
     @State private var showWipeConfirm = false
     @State private var devToast: String?
@@ -65,6 +71,19 @@ struct SettingsScreen: View {
         } message: {
             Text("You'll need to sign in with Apple again next time. Your projects and counters stay on this device.")
         }
+        .alert("Delete account?",
+               isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                isDeleting = true
+                Task {
+                    await account.deleteAccount()
+                    isDeleting = false
+                }
+            }
+        } message: {
+            Text("This permanently removes your projects, counters, row history, and saved API key from this device. You'll be signed out and returned to the welcome screen.\n\nYou can also revoke this app's access to your Apple ID in Settings → [Your Name] → Sign in with Apple → WindyKnits.")
+        }
         #if DEBUG
         .alert("Wipe all data?",
                isPresented: $showWipeConfirm) {
@@ -84,6 +103,13 @@ struct SettingsScreen: View {
             if !didLoadKey {
                 keyField = settings.anthropicAPIKey ?? ""
                 didLoadKey = true
+            }
+            // Same idea for the display name — without this, navigating away
+            // and back would reset the input to whatever was last persisted,
+            // even if the user was mid-edit.
+            if !didLoadName {
+                nameField = account.displayName ?? ""
+                didLoadName = true
             }
         }
     }
@@ -131,9 +157,29 @@ struct SettingsScreen: View {
                                     .foregroundStyle(.white)
                             )
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(account.displayName ?? "")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Palette.walnut)
+                            // SwiftUI's default TextField placeholder uses a
+                            // system-secondary tint that's hard to see against
+                            // SoftCard's cream background — users miss it and
+                            // don't realize the row is editable. Overlay a
+                            // placeholder we control instead, matching the
+                            // "Signed in with Apple" sub-text below it.
+                            ZStack(alignment: .leading) {
+                                if nameField.isEmpty {
+                                    Text("Add your name")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(Palette.walnutSoft)
+                                        .allowsHitTesting(false)
+                                }
+                                TextField("", text: $nameField)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Palette.walnut)
+                                    .textInputAutocapitalization(.words)
+                                    .autocorrectionDisabled()
+                                    .submitLabel(.done)
+                                    .onChange(of: nameField) { _, new in
+                                        account.updateDisplayName(new)
+                                    }
+                            }
                             if let email = account.email, !email.isEmpty {
                                 Text(email)
                                     .font(.system(size: 12))
@@ -159,6 +205,18 @@ struct SettingsScreen: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
+                    Divider().background(Palette.line)
+                    Button { showDeleteConfirm = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "trash")
+                            Text("Delete Account")
+                        }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDeleting)
                 }
             }
         }

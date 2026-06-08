@@ -16,7 +16,7 @@ struct YouScreen: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("You")
+                    Text(title)
                         .font(AppFont.serif(34))
                         .foregroundStyle(Palette.walnut)
                         .padding(.horizontal, 24)
@@ -67,6 +67,16 @@ struct YouScreen: View {
             }
             Spacer()
         }
+    }
+
+    /// The page heading prefers the user's display name when set, falling
+    /// back to a generic "You" only when neither Apple nor the user has
+    /// supplied one. Same source of truth as the greeting on Today.
+    private var title: String {
+        if let name = account.displayName, !name.isEmpty {
+            return name
+        }
+        return "You"
     }
 
     private var avatarInitial: String {

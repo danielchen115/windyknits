@@ -31,6 +31,7 @@ final class NavCoordinator {
 }
 
 struct RootView: View {
+    @Environment(UserAccount.self) private var account
     @State private var tab: AppTab = .today
     @State private var todayNav    = NavCoordinator()
     @State private var projectsNav = NavCoordinator()
@@ -42,6 +43,7 @@ struct RootView: View {
         @Bindable var projects = projectsNav
         @Bindable var counter  = counterNav
         @Bindable var you      = youNav
+        @Bindable var bindableAccount = account
 
         TabView(selection: $tab) {
             NavigationStack(path: $today.path) {
@@ -77,6 +79,13 @@ struct RootView: View {
             .tag(AppTab.you)
         }
         .tint(Palette.primary)
+        // Auto-prompts for a name once after sign-in when SIWA didn't deliver
+        // one. Lives at the RootView level so it surfaces immediately over
+        // whatever tab loads first; binding goes back to false on any
+        // dismissal (Save, Skip, or swipe-down).
+        .sheet(isPresented: $bindableAccount.needsNameEntry) {
+            NameEntrySheet()
+        }
     }
 }
 

@@ -29,14 +29,16 @@ enum TestState {
         // Reset the live PatternStore singleton so the next test sees an
         // empty in-memory state, not whatever the previous test left.
         PatternStore.shared.resetAll()
+        // The live WindyKnitsSettings singleton caches cloudConsent and
+        // anthropicAPIKey in memory; mutating UserDefaults / Keychain above
+        // doesn't propagate. Sync the in-memory copy so deleteAccount tests
+        // can assert against `WindyKnitsSettings.shared.*` directly.
+        WindyKnitsSettings.shared.cloudConsent = nil
+        WindyKnitsSettings.shared.anthropicAPIKey = nil
     }
 
     static func wipeAppGroup() {
-        let s = SharedStore.defaults
-        for (key, _) in s.dictionaryRepresentation() where key.hasPrefix("counter.") {
-            s.removeObject(forKey: key)
-        }
-        s.removeObject(forKey: "counter.migratedToAppGroup.v1")
+        SharedStore.wipeAllCounterKeys()
     }
 
     /// Loads the bundled sample projects into the shared store, mirroring the

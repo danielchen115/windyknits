@@ -30,14 +30,11 @@ enum DevTools {
 
     /// Removes every imported project and clears all counter / row-text /
     /// history state from the App Group. Leaves the Keychain alone — API
-    /// keys are user secrets, not demo data.
+    /// keys are user secrets, not demo data. (Account deletion uses a
+    /// different, fuller wipe; see `UserAccount.deleteAccount()`.)
     static func wipeAllData() {
         PatternStore.shared.resetAll()
-        let defaults = SharedStore.defaults
-        for (key, _) in defaults.dictionaryRepresentation() where key.hasPrefix("counter.") {
-            defaults.removeObject(forKey: key)
-        }
-        defaults.removeObject(forKey: "counter.migratedToAppGroup.v1")
+        SharedStore.wipeAllCounterKeys()
     }
 }
 #endif
